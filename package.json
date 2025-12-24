@@ -20,12 +20,12 @@
   },
   "homepage": "https://github.com/Bertomaycry/Nubred-backend#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "firebase-admin": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.0",
     "node-cron": "^4.2.1"

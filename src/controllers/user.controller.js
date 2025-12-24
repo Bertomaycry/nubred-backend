@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcrypt";
-import admin from "../utils/firebase.js";
+import { supabase } from "../utils/supabase.js";
 
 export const register = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, phoneNumber, password } = req.body;
@@ -245,11 +245,23 @@ export const logout = asyncHandler(async (req, res) => {
 });
 
 export const handleSocialLogin = asyncHandler(async (req, res) => {
-  const { idToken } = req.body;
+  const { accessToken: supabaseAccessToken } = req.body;
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { email, name } = decodedToken;
+    // Verify Supabase token and get user
+    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(supabaseAccessToken);
+
+    if (error || !supabaseUser) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token",
+      });
+    }
+
+    const email = supabaseUser.email;
+    const name = supabaseUser.user_metadata?.full_name ||
+                 supabaseUser.user_metadata?.name ||
+                 email.split('@')[0];
 
     if (!email) {
       return res.status(400).json({
