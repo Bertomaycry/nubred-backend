@@ -247,8 +247,15 @@ export const logout = asyncHandler(async (req, res) => {
 export const handleSocialLogin = asyncHandler(async (req, res) => {
   const { accessToken: supabaseAccessToken } = req.body;
 
+  if (!supabaseAccessToken) {
+    return res.status(400).json({
+      success: false,
+      message: "Access token is required",
+    });
+  }
+
   try {
-    // Verify Supabase token and get user
+    // Verify Supabase token and get user using SERVICE_ROLE_KEY
     const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(supabaseAccessToken);
 
     if (error || !supabaseUser) {
@@ -258,10 +265,13 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
       });
     }
 
+    // Extract user details from Supabase user
+    const supabaseUserId = supabaseUser.id;
     const email = supabaseUser.email;
+    const provider = supabaseUser.app_metadata?.provider || 'google';
     const name = supabaseUser.user_metadata?.full_name ||
                  supabaseUser.user_metadata?.name ||
-                 email.split('@')[0];
+                 email?.split('@')[0] || '';
 
     if (!email) {
       return res.status(400).json({
@@ -270,8 +280,21 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
       });
     }
 
-    let user = await User.findOne({ email });
+    // Look up user by Supabase ID first (primary identifier), then fallback to email
+    let user = await User.findOne({ supabaseUserId });
+    
+    if (!user) {
+      // Fallback: check by email for existing users without Supabase ID
+      user = await User.findOne({ email });
+      
+      if (user) {
+        // Update existing user with Supabase ID
+        user.supabaseUserId = supabaseUserId;
+        await user.save();
+      }
+    }
 
+    // Create new user if doesn't exist
     if (!user) {
       let firstName = "";
       let lastName = "";
@@ -281,17 +304,20 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
         lastName = nameParts.slice(1).join(" ") || "";
       }
 
-      const randomPassword = Math.random().toString(36).slice(-8);
+      // Generate random password for OAuth users (not used for login)
+      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
 
       user = await User.create({
         firstName,
         lastName,
         email,
+        supabaseUserId,
         password: randomPassword,
         phoneNumber: `+${Math.floor(Math.random() * 9000000000) + 1000000000}`,
       });
     }
 
+    // Generate JWT tokens for backend session
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
 
@@ -307,6 +333,8 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         email: user.email,
+        supabaseUserId: user.supabaseUserId,
+        provider,
         accessToken,
         refreshToken,
         profile: user.profile,
@@ -320,9 +348,9 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error("Social login failed:", error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      message: "Invalid or expired token",
+      message: error.message || "Authentication failed",
     });
   }
 });
@@ -448,7 +476,6 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   try {
     const userId = req.params._id;
-    console.log(userId, '-------')
     const user = await User.findByIdAndDelete(userId)
     if (user) {
       res.status(200).json({

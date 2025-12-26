@@ -16,6 +16,11 @@ const userSchema = new mongoose.Schema(
       unique: true,
       required: true,
     },
+    supabaseUserId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows null values but enforces uniqueness when present
+    },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
 
     phoneNumber: {

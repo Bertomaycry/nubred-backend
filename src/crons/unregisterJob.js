@@ -2,9 +2,7 @@ import cron from "node-cron";
 import User from "../models/user.model.js";
 
 export const scheduleUnregisterJob = () => {
-    console.log('cron job started ')
     cron.schedule("0 0 * * *", async () => {
-        console.log("🕛 Running daily unregistration check...");
 
         const now = new Date();
         const usersToUnregister = await User.find({
@@ -17,8 +15,6 @@ export const scheduleUnregisterJob = () => {
             user.is_unregistered = true;
             user.unregister_requested = false;
             await user.save();
-
-            console.log(`✅ User ${user.email} unregistered after 30 days`);
         }
     });
 };

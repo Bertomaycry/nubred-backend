@@ -86,10 +86,6 @@ export const getUserProfile = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { profile_id, profile_type, profile_data } = req.body;
-
-
-    console.log(profile_id, 'profile id--')
-
     if (!["company", "consultant"].includes(profile_type)) {
       return res.status(400).json({ message: "Invalid profile type." });
     }
