@@ -1,33 +1,39 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Trim values to handle whitespace/quotes in .env files
-const supabaseUrl = process.env.SUPABASE_URL?.trim();
+let supabaseClient = null;
 
-// Check all possible Supabase key variable names (in order of preference)
-const supabaseServiceRoleKey = (
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_KEY ||
-  process.env.SUPABASE_SECRET_KEY ||
-  process.env.SUPABASE_ANON_KEY
-)?.trim();
+export function resolveSupabaseConfig() {
+  const supabaseUrl = process.env.SUPABASE_URL
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  const missingVars = [];
-  if (!supabaseUrl) missingVars.push("SUPABASE_URL");
-  if (!supabaseServiceRoleKey) {
-    missingVars.push(
-      "SUPABASE_SERVICE_ROLE_KEY, SUPABASE_KEY, SUPABASE_SECRET_KEY, or SUPABASE_ANON_KEY"
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const anonKey = process.env.SUPABASE_ANON_KEY?.trim();
+
+  if (!supabaseUrl) {
+    throw new Error("SUPABASE_URL is missing in environment variables");
+  }
+
+  const key = serviceRoleKey || anonKey;
+
+  if (!key) {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY must be set in environment variables"
     );
   }
-  throw new Error(
-    `Missing required Supabase configuration: ${missingVars.join(" and ")} must be set in environment variables`
-  );
+
+  return { supabaseUrl, key };
 }
 
-// Backend uses SERVICE_ROLE_KEY for admin operations (token verification)
-export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+export function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+
+  const { supabaseUrl, key } = resolveSupabaseConfig();
+
+  supabaseClient = createClient(supabaseUrl, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  return supabaseClient;
+}

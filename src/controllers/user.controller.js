@@ -1,7 +1,9 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcrypt";
-import { supabase } from "../utils/supabase.js";
+import { getSupabaseClient } from "../utils/supabase.js";
+
+const supabase = getSupabaseClient();
 
 export const register = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, phoneNumber, password } = req.body;
@@ -71,10 +73,9 @@ export const getUsers = asyncHandler(async (req, res) => {
 });
 export const getSingleUser = asyncHandler(async (req, res) => {
   try {
-    const userId = req.params._id
+    const userId = req.params._id;
     const user = await User.findById(userId);
     if (user) {
-
       const { accessToken, refreshToken } = await generateTokens(user._id);
 
       res.status(200).json({
@@ -192,7 +193,9 @@ export const adminLogin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ success: false, message: "Please provide email and password" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Please provide email and password" });
   }
 
   const user = await User.findOne({ email });
@@ -201,14 +204,18 @@ export const adminLogin = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: "User not found" });
   }
 
-  if (user.role !== 'admin') {
-    return res.status(403).json({ success: false, message: "Access denied: not an admin" });
+  if (user.role !== "admin") {
+    return res
+      .status(403)
+      .json({ success: false, message: "Access denied: not an admin" });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
-    return res.status(400).json({ success: false, message: "Invalid password" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid password" });
   }
 
   const { accessToken, refreshToken } = await generateTokens(user._id);
@@ -225,7 +232,6 @@ export const adminLogin = asyncHandler(async (req, res) => {
     },
   });
 });
-
 
 export const logout = asyncHandler(async (req, res) => {
   try {
@@ -256,7 +262,10 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
 
   try {
     // Verify Supabase token and get user using SERVICE_ROLE_KEY
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(supabaseAccessToken);
+    const {
+      data: { user: supabaseUser },
+      error,
+    } = await supabase.auth.getUser(supabaseAccessToken);
 
     if (error || !supabaseUser) {
       return res.status(401).json({
@@ -268,10 +277,12 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
     // Extract user details from Supabase user
     const supabaseUserId = supabaseUser.id;
     const email = supabaseUser.email;
-    const provider = supabaseUser.app_metadata?.provider || 'google';
-    const name = supabaseUser.user_metadata?.full_name ||
-                 supabaseUser.user_metadata?.name ||
-                 email?.split('@')[0] || '';
+    const provider = supabaseUser.app_metadata?.provider || "google";
+    const name =
+      supabaseUser.user_metadata?.full_name ||
+      supabaseUser.user_metadata?.name ||
+      email?.split("@")[0] ||
+      "";
 
     if (!email) {
       return res.status(400).json({
@@ -282,11 +293,11 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
 
     // Look up user by Supabase ID first (primary identifier), then fallback to email
     let user = await User.findOne({ supabaseUserId });
-    
+
     if (!user) {
       // Fallback: check by email for existing users without Supabase ID
       user = await User.findOne({ email });
-      
+
       if (user) {
         // Update existing user with Supabase ID
         user.supabaseUserId = supabaseUserId;
@@ -305,7 +316,9 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
       }
 
       // Generate random password for OAuth users (not used for login)
-      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+      const randomPassword =
+        Math.random().toString(36).slice(-8) +
+        Math.random().toString(36).slice(-8);
 
       user = await User.create({
         firstName,
@@ -470,13 +483,10 @@ export const updateBan = async (req, res) => {
   });
 };
 
-
 export const deleteUser = asyncHandler(async (req, res) => {
-
-
   try {
     const userId = req.params._id;
-    const user = await User.findByIdAndDelete(userId)
+    const user = await User.findByIdAndDelete(userId);
     if (user) {
       res.status(200).json({
         success: true,
@@ -497,7 +507,6 @@ export const deleteUser = asyncHandler(async (req, res) => {
     });
   }
 });
-
 
 export const registerAccount = asyncHandler(async (req, res) => {
   try {
@@ -534,7 +543,9 @@ export const unregisterUser = asyncHandler(async (req, res) => {
       userId,
       {
         unregister_requested: true,
-        unregister_scheduled_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        unregister_scheduled_at: new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000
+        ),
       },
       { new: true }
     );
@@ -558,7 +569,6 @@ export const unregisterUser = asyncHandler(async (req, res) => {
     });
   }
 });
-
 
 export const cancelUnregister = asyncHandler(async (req, res) => {
   const userId = req.params._id;

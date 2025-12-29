@@ -7,11 +7,13 @@ import chatRoutes from "./routes/chat.routes.js";
 
 const app = express();
 
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -22,10 +24,8 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/inquiry", inquiryRoutes);
 app.use("/api/chat-history", chatRoutes);
 
-
-
-app.get('/health', (req, res) => {
-  res.send('server is working')
-})
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
 
 export default app;
