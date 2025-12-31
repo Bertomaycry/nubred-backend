@@ -577,5 +577,13 @@ export const cancelUnregister = asyncHandler(async (req, res) => {
     { unregister_requested: false, unregister_scheduled_at: null },
     { new: true }
   );
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
   res.json({ success: true, message: "Unregistration canceled", data: user });
 });

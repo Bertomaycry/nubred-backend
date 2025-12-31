@@ -7,10 +7,10 @@ import User from "../../src/models/user.model.js";
 
 jest.setTimeout(30000); // 30s to avoid timeouts on DB operations
 
-// Use env if available, otherwise fallback to your real test/dev URI
+// Use env if available, otherwise fallback to local test database
 const MONGO_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://saad:tekkdev_12@cluster0.mee2tv4.mongodb.net/nubred-dev?retryWrites=true&w=majority&appName=Cluster0";
+  "mongodb://127.0.0.1:27017/nubred-auth-test";
 
 describe("Auth/User Routes - Integration", () => {
   const baseUrl = "/api/auth";
@@ -216,9 +216,16 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should logout successfully with valid token", async () => {
+      // Create a fresh token for this test
+      const freshToken = jwt.sign(
+        { id: createdUserId, email: testUser.email },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+
       const res = await request(app)
         .post(`${baseUrl}/logout`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("Authorization", `Bearer ${freshToken}`);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
@@ -321,36 +328,61 @@ describe("Auth/User Routes - Integration", () => {
   });
 
   describe("User onboarding & account state routes", () => {
+    let onboardingUserId;
+    let onboardingToken;
+
+    beforeAll(async () => {
+      // Create a dedicated user for onboarding tests
+      const onboardingUser = await User.create({
+        firstName: "Onboard",
+        lastName: "Test",
+        email: "onboard@example.com",
+        phoneNumber: "+10000001007",
+        password: "OnboardPass123!",
+      });
+      onboardingUserId = onboardingUser._id.toString();
+      onboardingToken = jwt.sign(
+        { id: onboardingUserId, email: "onboard@example.com" },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+    });
+
+    // Helper to generate a fresh token
+    const getFreshToken = () => {
+      return onboardingToken;
+    };
+
     it("should mark user as onboarded", async () => {
       const res = await request(app)
         .post(`${baseUrl}/complete-onboarding`)
-        .send({ _id: createdUserId });
+        .send({ _id: onboardingUserId });
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("Onboarding complete");
 
-      const user = await User.findById(createdUserId);
+      const user = await User.findById(onboardingUserId);
       expect(user.is_onboarded).toBe(true);
     });
 
     it("should mark account creation as skipped", async () => {
       const res = await request(app)
         .post(`${baseUrl}/account-creation-skipped`)
-        .send({ _id: createdUserId });
+        .send({ _id: onboardingUserId });
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("User logged in successfully");
 
-      const user = await User.findById(createdUserId);
+      const user = await User.findById(onboardingUserId);
       expect(user.is_account_created_skipped).toBe(true);
     });
 
     it("should schedule unregister in 30 days", async () => {
       const res = await request(app)
-        .post(`${baseUrl}/unregister/${createdUserId}`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .post(`${baseUrl}/unregister/${onboardingUserId}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
@@ -361,26 +393,26 @@ describe("Auth/User Routes - Integration", () => {
 
     it("should cancel unregister request", async () => {
       const res = await request(app)
-        .post(`${baseUrl}/cancel-unregister/${createdUserId}`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .post(`${baseUrl}/cancel-unregister/${onboardingUserId}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("Unregistration canceled");
 
-      const user = await User.findById(createdUserId);
+      const user = await User.findById(onboardingUserId);
       expect(user.unregister_requested).toBe(false);
       expect(user.unregister_scheduled_at).toBeNull();
     });
 
     it("should register account again (is_unregistered=false)", async () => {
       // First mark user as unregistered directly
-      await User.findByIdAndUpdate(createdUserId, { is_unregistered: true });
+      await User.findByIdAndUpdate(onboardingUserId, { is_unregistered: true });
 
       const res = await request(app)
         .post(`${baseUrl}/register-account`)
-        .set("Authorization", `Bearer ${authToken}`)
-        .send({ userId: createdUserId });
+        .set("Authorization", `Bearer ${getFreshToken()}`)
+        .send({ userId: onboardingUserId });
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
@@ -388,28 +420,61 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.data.is_unregistered).toBe(false);
     });
 
-    it("should cancel unregister even if user does not exist (current behavior)", async () => {
+    it("should return 404 when canceling unregister for non-existent user", async () => {
       const fakeId = "67575bc829f1edf36a7582aa";
 
       const res = await request(app)
         .post(`${baseUrl}/cancel-unregister/${fakeId}`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("Authorization", `Bearer ${getFreshToken()}`);
 
-      // Your controller does not check if user is null; it returns success anyway.
-      expect(res.statusCode).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.message).toBe("Unregistration canceled");
-
-      // data may be null depending on mongoose
-      expect(res.body).toHaveProperty("data");
+      expect(res.statusCode).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("User not found");
     });
   });
 
   describe("Ban / Unban / Update Ban routes", () => {
+    let adminUserId;
+    let adminToken;
+    let userToBanId;
+
+    beforeAll(async () => {
+      // Create an admin user for these protected routes
+      const adminUser = await User.create({
+        firstName: "Admin",
+        lastName: "Ban",
+        email: "adminban@example.com",
+        phoneNumber: "+10000001005",
+        password: "AdminPass123!",
+        role: "admin",
+      });
+      adminUserId = adminUser._id.toString();
+      adminToken = jwt.sign(
+        { id: adminUserId, email: "adminban@example.com" },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+
+      // Create a user to be banned
+      const userToBan = await User.create({
+        firstName: "Ban",
+        lastName: "Test",
+        email: "bantest@example.com",
+        phoneNumber: "+10000001008",
+        password: "BanPass123!",
+      });
+      userToBanId = userToBan._id.toString();
+    });
+
+    // Helper to generate a fresh token
+    const getFreshToken = () => {
+      return adminToken;
+    };
+
     it("should return 400 when banning without required fields", async () => {
       const res = await request(app)
         .post(`${baseUrl}/ban-user`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({}); // missing userId and ban
 
       expect(res.statusCode).toBe(400);
@@ -419,7 +484,7 @@ describe("Auth/User Routes - Integration", () => {
     it("should return 404 when banning non-existing user", async () => {
       const res = await request(app)
         .post(`${baseUrl}/ban-user`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
           userId: "67575bc829f1edf36a7582aa",
           ban: { type: "temporary", reason: "test", period: 7 },
@@ -432,9 +497,9 @@ describe("Auth/User Routes - Integration", () => {
     it("should ban user successfully", async () => {
       const res = await request(app)
         .post(`${baseUrl}/ban-user`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
-          userId: createdUserId,
+          userId: userToBanId,
           ban: { type: "temporary", reason: "violation", period: 7 },
         });
 
@@ -442,7 +507,7 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("User has been suspended successfully");
 
-      const user = await User.findById(createdUserId);
+      const user = await User.findById(userToBanId);
       expect(user.ban.is_banned).toBe(true);
       expect(user.ban.reason).toBe("violation");
     });
@@ -450,7 +515,7 @@ describe("Auth/User Routes - Integration", () => {
     it("should return 400 when removing ban without userId", async () => {
       const res = await request(app)
         .post(`${baseUrl}/unban`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({});
 
       expect(res.statusCode).toBe(400);
@@ -460,7 +525,7 @@ describe("Auth/User Routes - Integration", () => {
     it("should return 404 when removing ban for non-existing user", async () => {
       const res = await request(app)
         .post(`${baseUrl}/unban`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({ userId: "67575bc829f1edf36a7582aa" });
 
       expect(res.statusCode).toBe(404);
@@ -470,21 +535,21 @@ describe("Auth/User Routes - Integration", () => {
     it("should remove ban successfully", async () => {
       const res = await request(app)
         .post(`${baseUrl}/unban`)
-        .set("Authorization", `Bearer ${authToken}`)
-        .send({ userId: createdUserId });
+        .set("Authorization", `Bearer ${getFreshToken()}`)
+        .send({ userId: userToBanId });
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("User has been unsuspended successfully.");
 
-      const user = await User.findById(createdUserId);
+      const user = await User.findById(userToBanId);
       expect(user.ban.is_banned).toBe(false);
     });
 
     it("should return 400 when updating ban without required fields", async () => {
       const res = await request(app)
         .post(`${baseUrl}/update-ban`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({});
 
       expect(res.statusCode).toBe(400);
@@ -494,7 +559,7 @@ describe("Auth/User Routes - Integration", () => {
     it("should return 404 when updating ban for non-existing user", async () => {
       const res = await request(app)
         .post(`${baseUrl}/update-ban`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
           userId: "67575bc829f1edf36a7582aa",
           ban: { type: "permanent", reason: "test" },
@@ -507,9 +572,9 @@ describe("Auth/User Routes - Integration", () => {
     it("should update ban successfully (or fail if period is required)", async () => {
       const res = await request(app)
         .post(`${baseUrl}/update-ban`)
-        .set("Authorization", `Bearer ${authToken}`)
+        .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
-          userId: createdUserId,
+          userId: userToBanId,
           ban: { type: "permanent", reason: "serious violation" },
         });
 
@@ -520,7 +585,7 @@ describe("Auth/User Routes - Integration", () => {
         expect(res.body.success).toBe(true);
         expect(res.body.message).toBe("User has been banned updated");
 
-        const user = await User.findById(createdUserId);
+        const user = await User.findById(userToBanId);
         expect(user.ban.is_banned).toBe(true);
         expect(user.ban.type).toBe("permanent");
         expect(user.ban.reason).toBe("serious violation");
@@ -532,8 +597,26 @@ describe("Auth/User Routes - Integration", () => {
 
   describe("DELETE /delete-user/:_id", () => {
     let userToDeleteId;
+    let adminUserId;
+    let adminToken;
 
     beforeAll(async () => {
+      // Create an admin user for these protected routes
+      const adminUser = await User.create({
+        firstName: "Admin",
+        lastName: "Delete",
+        email: "admindelete@example.com",
+        phoneNumber: "+10000001006",
+        password: "AdminPass123!",
+        role: "admin",
+      });
+      adminUserId = adminUser._id.toString();
+      adminToken = jwt.sign(
+        { id: adminUserId, email: "admindelete@example.com" },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+
       const userToDelete = await User.create({
         firstName: "Delete",
         lastName: "Me",
@@ -544,10 +627,15 @@ describe("Auth/User Routes - Integration", () => {
       userToDeleteId = userToDelete._id.toString();
     });
 
+    // Helper to generate a fresh token
+    const getFreshToken = () => {
+      return adminToken;
+    };
+
     it("should return 404 when deleting non-existing user", async () => {
       const res = await request(app)
         .delete(`${baseUrl}/delete-user/67575bc829f1edf36a7582aa`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("Authorization", `Bearer ${getFreshToken()}`);
 
       expect(res.statusCode).toBe(404);
       expect(res.body.success).toBe(false);
@@ -557,7 +645,7 @@ describe("Auth/User Routes - Integration", () => {
     it("should delete user successfully", async () => {
       const res = await request(app)
         .delete(`${baseUrl}/delete-user/${userToDeleteId}`)
-        .set("Authorization", `Bearer ${authToken}`);
+        .set("Authorization", `Bearer ${getFreshToken()}`);
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
@@ -566,6 +654,186 @@ describe("Auth/User Routes - Integration", () => {
 
       const deleted = await User.findById(userToDeleteId);
       expect(deleted).toBeNull();
+    });
+  });
+
+  describe("JWT Token Validation Tests", () => {
+    let testUserId;
+
+    beforeAll(async () => {
+      const testUser = await User.create({
+        firstName: "Token",
+        lastName: "Test",
+        email: "token.test@example.com",
+        phoneNumber: "+10000009999",
+        password: "Password123!",
+      });
+      testUserId = testUser._id.toString();
+    });
+
+    afterAll(async () => {
+      await User.findByIdAndDelete(testUserId);
+    });
+
+    it("should return 401 for expired token", async () => {
+      const expiredToken = jwt.sign(
+        { id: testUserId, email: "token.test@example.com" },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "0s" }
+      );
+
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", `Bearer ${expiredToken}`);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Please login to access this resource");
+    });
+
+    it("should return 401 for token signed with wrong secret", async () => {
+      const wrongToken = jwt.sign(
+        { id: testUserId, email: "token.test@example.com" },
+        "wrong-secret-key",
+        { expiresIn: "20m" }
+      );
+
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", `Bearer ${wrongToken}`);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Please login to access this resource");
+    });
+
+    it("should return 401 for malformed Authorization header (no Bearer)", async () => {
+      const validToken = jwt.sign(
+        { id: testUserId, email: "token.test@example.com" },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", validToken);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Token not provided");
+    });
+
+    it("should return 401 for malformed Authorization header (lowercase bearer)", async () => {
+      const validToken = jwt.sign(
+        { id: testUserId, email: "token.test@example.com" },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", `bearer ${validToken}`);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Token not provided");
+    });
+
+    it("should return 401 when user is deleted but token is valid", async () => {
+      const tempUser = await User.create({
+        firstName: "Temp",
+        lastName: "User",
+        email: "temp.deleted@example.com",
+        phoneNumber: "+10000008888",
+        password: "Password123!",
+      });
+
+      const validToken = jwt.sign(
+        { id: tempUser._id.toString(), email: tempUser.email },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+
+      await User.findByIdAndDelete(tempUser._id);
+
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", `Bearer ${validToken}`);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("User not found");
+    });
+
+    it("should return 401 for empty Bearer token", async () => {
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", "Bearer ");
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Token not provided");
+    });
+  });
+
+  describe("POST /cancel-unregister/:_id - cancelUnregister Tests", () => {
+    let adminUserId;
+    let adminToken;
+
+    beforeAll(async () => {
+      const admin = await User.create({
+        firstName: "Admin",
+        lastName: "Cancel",
+        email: "admin.cancel@example.com",
+        phoneNumber: "+10000007777",
+        password: "Password123!",
+        role: "admin",
+      });
+      adminUserId = admin._id.toString();
+      adminToken = jwt.sign(
+        { id: adminUserId, email: admin.email },
+        process.env.ACCESS_TOKEN_SECRET_KEY,
+        { expiresIn: "20m" }
+      );
+    });
+
+    afterAll(async () => {
+      await User.findByIdAndDelete(adminUserId);
+    });
+
+    it("should return 404 when canceling unregister for non-existent user", async () => {
+      const fakeUserId = "67575bc829f1edf36a7582aa";
+      const res = await request(app)
+        .post(`${baseUrl}/cancel-unregister/${fakeUserId}`)
+        .set("Authorization", `Bearer ${adminToken}`);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("User not found");
+    });
+
+    it("should successfully cancel unregister for existing user", async () => {
+      const testUser = await User.create({
+        firstName: "Unregister",
+        lastName: "Test",
+        email: "unregister.test@example.com",
+        phoneNumber: "+10000006666",
+        password: "Password123!",
+        unregister_requested: true,
+        unregister_scheduled_at: new Date(),
+      });
+
+      const res = await request(app)
+        .post(`${baseUrl}/cancel-unregister/${testUser._id}`)
+        .set("Authorization", `Bearer ${adminToken}`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe("Unregistration canceled");
+      expect(res.body.data.unregister_requested).toBe(false);
+      expect(res.body.data.unregister_scheduled_at).toBeNull();
+
+      await User.findByIdAndDelete(testUser._id);
     });
   });
 });

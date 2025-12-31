@@ -895,4 +895,19 @@ describe("user.controller.js - full unit coverage", () => {
       })
     );
   });
+
+  test("cancelUnregister: user not found -> 404", async () => {
+    const req = { params: { _id: "u404" } };
+    const res = makeRes();
+
+    mockUserModel.findByIdAndUpdate.mockResolvedValue(null);
+
+    await controller.cancelUnregister(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "User not found",
+    });
+  });
 });

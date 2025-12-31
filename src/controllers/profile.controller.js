@@ -13,7 +13,15 @@ export const createUserProfile = async (req, res) => {
     }
 
     const existingUser = await User.findById(userId);
-    if (existingUser?.profile) {
+
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (existingUser.profile) {
       return res.status(400).json({
         success: false,
         message: "Profile already exists for this user.",
@@ -90,8 +98,31 @@ export const updateUserProfile = async (req, res) => {
       return res.status(400).json({ message: "Invalid profile type." });
     }
 
-    let updatedProfile;
+    // First, fetch the profile to verify ownership
+    let profileDoc;
+    if (profile_type === "company") {
+      profileDoc = await Company.findById(profile_id);
+    } else {
+      profileDoc = await Consultant.findById(profile_id);
+    }
 
+    if (!profileDoc) {
+      return res.status(404).json({
+        success: false,
+        message: `${profile_type} profile not found.`,
+      });
+    }
+
+    // Verify ownership: user can only update their own profile
+    if (profileDoc.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: You can only update your own profile.",
+      });
+    }
+
+    // Now proceed with update
+    let updatedProfile;
     if (profile_type === "company") {
       updatedProfile = await Company.findByIdAndUpdate(
         profile_id,
@@ -104,13 +135,6 @@ export const updateUserProfile = async (req, res) => {
         { $set: profile_data },
         { new: true, runValidators: true }
       );
-    }
-
-    if (!updatedProfile) {
-      return res.status(404).json({
-        success: false,
-        message: `${profile_type} profile not found.`,
-      });
     }
 
     res.status(200).json({
