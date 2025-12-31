@@ -26,39 +26,7 @@ const mockUserModel = {
   find: jest.fn(),
   create: jest.fn(),
   findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
   findByIdAndDelete: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-
-  // these 2 are used explicitly
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndDelete: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-
-  // logout uses this
-  findByIdAndUpdate: jest.fn(),
 };
 
 jest.mock("../../src/models/user.model.js", () => ({
@@ -211,6 +179,56 @@ describe("user.controller.js - full unit coverage", () => {
   });
 
   // ---------------- getSingleUser ----------------
+  test("getSingleUser: success -> 200 with tokens and user data", async () => {
+    const req = { params: { _id: "u-single-1" } };
+    const res = makeRes();
+
+    const baseUser = {
+      _id: "u-single-1",
+      firstName: "Single",
+      lastName: "User",
+      email: "single@a.com",
+      phoneNumber: "+222",
+      profile: null,
+      profile_type: null,
+      is_unregistered: false,
+      account_created: false,
+      is_onboarded: false,
+      is_account_created_skipped: false,
+      ban: { is_banned: false },
+    };
+
+    mockUserModel.findById.mockResolvedValueOnce(baseUser);
+
+    const tokenUser = {
+      ...baseUser,
+      generateAccessToken: () => "ACCESS_TOKEN_SINGLE",
+      generateRefreshToken: () => "REFRESH_TOKEN_SINGLE",
+      save: jest.fn().mockResolvedValue(true),
+    };
+    mockUserModel.findById.mockResolvedValueOnce(tokenUser);
+
+    await controller.getSingleUser(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        message: "Users fetched Successfully",
+        data: expect.objectContaining({
+          _id: "u-single-1",
+          email: "single@a.com",
+          accessToken: "ACCESS_TOKEN_SINGLE",
+          refreshToken: "REFRESH_TOKEN_SINGLE",
+        }),
+      })
+    );
+
+    expect(tokenUser.save).toHaveBeenCalledWith(
+      expect.objectContaining({ validateBeforeSave: false })
+    );
+  });
+
   test("getSingleUser: user NOT found -> returns 200 with success:false (missing else branch)", async () => {
     const req = { params: { _id: "x" } };
     const res = makeRes();
@@ -277,6 +295,75 @@ describe("user.controller.js - full unit coverage", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json.mock.calls[0][0].message).toBe("db crash");
+  });
+
+  test("login: user not found -> 400 Invalid email or password", async () => {
+    const req = { body: { email: "nouser@a.com", password: "pass" } };
+    const res = makeRes();
+
+    mockUserModel.findOne.mockResolvedValue(null);
+
+    await controller.login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        message: "Invalid email or password",
+      })
+    );
+  });
+
+  test("login: success -> 200 with tokens", async () => {
+    const req = { body: { email: "john@a.com", password: "Password123!" } };
+    const res = makeRes();
+
+    const userFromFindOne = {
+      _id: "u-login-1",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@a.com",
+      phoneNumber: "+111",
+      password: "hashed",
+      profile: null,
+      profile_type: null,
+      is_unregistered: false,
+      account_created: false,
+      is_onboarded: false,
+      is_account_created_skipped: false,
+      ban: { is_banned: false },
+    };
+
+    const userFromFindById = {
+      ...userFromFindOne,
+      generateAccessToken: () => "ACCESS_TOKEN",
+      generateRefreshToken: () => "REFRESH_TOKEN",
+      save: jest.fn().mockResolvedValue(true),
+    };
+
+    mockUserModel.findOne.mockResolvedValue(userFromFindOne);
+    mockBcryptCompare.mockResolvedValue(true);
+    mockUserModel.findById.mockResolvedValue(userFromFindById);
+
+    await controller.login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        message: "User logged in successfully",
+        user: expect.objectContaining({
+          email: "john@a.com",
+          accessToken: "ACCESS_TOKEN",
+          refreshToken: "REFRESH_TOKEN",
+        }),
+      })
+    );
+
+    // generateTokens should store refresh token and save
+    expect(userFromFindById.save).toHaveBeenCalledWith(
+      expect.objectContaining({ validateBeforeSave: false })
+    );
   });
 
   // ---------------- adminLogin ----------------
@@ -802,7 +889,10 @@ describe("user.controller.js - full unit coverage", () => {
     await controller.cancelUnregister(req, res);
 
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, message: "Unregistration canceled" })
+      expect.objectContaining({
+        success: true,
+        message: "Unregistration canceled",
+      })
     );
   });
 });

@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-dotenv.config({ path: ".env.test" }); 
 import mongoose from "mongoose";
 import request from "supertest";
 import jwt from "jsonwebtoken";
@@ -131,15 +130,14 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should return 400 when user does not exist", async () => {
-  const res = await request(app)
-    .post(`${baseUrl}/login`)
-    .send({ email: "nouser@example.com", password: "AnyPass123!" });
+      const res = await request(app)
+        .post(`${baseUrl}/login`)
+        .send({ email: "nouser@example.com", password: "AnyPass123!" });
 
-  expect(res.statusCode).toBe(400);
-  expect(res.body.success).toBe(false);
-  expect(res.body.message).toBe("Invalid email or password");
-});
-
+      expect(res.statusCode).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Invalid email or password");
+    });
   });
 
   describe("GET /user/:_id", () => {
@@ -194,6 +192,19 @@ describe("Auth/User Routes - Integration", () => {
       expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body.data.length).toBeGreaterThan(0);
     });
+
+    it("should return 401 when token is invalid", async () => {
+      const res = await request(app)
+        .get(`${baseUrl}/users`)
+        .set("Authorization", `Bearer invalid.token.here`);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+
+      // message depends on your jwtVerify implementation
+      // If you know exact message, assert it. Otherwise keep it loose:
+      expect(res.body.message).toBeDefined();
+    });
   });
 
   describe("POST /logout (protected)", () => {
@@ -211,6 +222,16 @@ describe("Auth/User Routes - Integration", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
+    });
+
+    it("should return 401 when token is invalid", async () => {
+      const res = await request(app)
+        .post(`${baseUrl}/logout`)
+        .set("Authorization", `Bearer invalid.token.here`);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBeDefined();
     });
   });
 
@@ -365,6 +386,22 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("Account Registered successfully");
       expect(res.body.data.is_unregistered).toBe(false);
+    });
+
+    it("should cancel unregister even if user does not exist (current behavior)", async () => {
+      const fakeId = "67575bc829f1edf36a7582aa";
+
+      const res = await request(app)
+        .post(`${baseUrl}/cancel-unregister/${fakeId}`)
+        .set("Authorization", `Bearer ${authToken}`);
+
+      // Your controller does not check if user is null; it returns success anyway.
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe("Unregistration canceled");
+
+      // data may be null depending on mongoose
+      expect(res.body).toHaveProperty("data");
     });
   });
 
