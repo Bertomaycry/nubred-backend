@@ -26,11 +26,7 @@ jest.mock("../../src/models/ConsultantProfile.model.js", () => ({
 }));
 
 // import controller AFTER mocks
-const {
-  createUserProfile,
-  getUserProfile,
-  updateUserProfile,
-} = require("../../src/controllers/profile.controller.js");
+import { createUserProfile, getUserProfile, updateUserProfile } from "../../src/controllers/profile.controller.js";
 
 // access mocked modules
 const User = jest.requireMock("../../src/models/user.model.js").default;
