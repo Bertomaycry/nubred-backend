@@ -113,7 +113,7 @@ export const getSingleUser = asyncHandler(async (req, res) => {
   }
 });
 
-const generateTokens = async (userId) => {
+export const generateTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
 
