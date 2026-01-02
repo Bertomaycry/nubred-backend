@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 
-const { asyncHandler } = require("../../src/utils/asyncHandler.js");
+import { asyncHandler } from "../../src/utils/asyncHandler.js";
 
 describe("asyncHandler - unit tests", () => {
   const makeReq = () => ({});
@@ -92,4 +92,3 @@ describe("asyncHandler - unit tests", () => {
     });
   });
 });
-
