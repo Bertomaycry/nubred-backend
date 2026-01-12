@@ -1,18 +1,17 @@
-import Company from "../models/CompanyProfile.model.js";
-import Consultant from "../models/ConsultantProfile.model.js";
-import User from "../models/user.model.js";
+import prisma from "../lib/prisma.js";
 
 export const createUserProfile = async (req, res) => {
   try {
     const userId = req.body._id;
-
     const { profile_type, profile_data } = req.body;
 
     if (!["company", "consultant"].includes(profile_type)) {
       return res.status(400).json({ message: "Invalid profile type." });
     }
 
-    const existingUser = await User.findById(userId);
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
     if (!existingUser) {
       return res.status(404).json({
@@ -21,7 +20,7 @@ export const createUserProfile = async (req, res) => {
       });
     }
 
-    if (existingUser.profile) {
+    if (existingUser.profileId) {
       return res.status(400).json({
         success: false,
         message: "Profile already exists for this user.",
@@ -31,26 +30,73 @@ export const createUserProfile = async (req, res) => {
     let createdProfile;
 
     if (profile_type === "company") {
-      createdProfile = await Company.create({
-        user: userId,
-        ...profile_data,
+      // Transform nested objects to flat structure for Prisma
+      const companyData = {
+        userId: userId,
+        legal_company_name: profile_data.legal_company_name,
+        country_of_incorporation: profile_data.country_of_incorporation,
+        vat_number: profile_data.vat_number,
+        company_email: profile_data.company_email,
+        use_signup_email: profile_data.use_signup_email ?? false,
+        description: profile_data.description,
+        use_signup_info: profile_data.use_signup_info ?? false,
+        use_signup_phone: profile_data.use_signup_phone ?? false,
+        // Flatten location object
+        location_address: profile_data.location?.address,
+        location_postal_code: profile_data.location?.postal_code,
+        location_country: profile_data.location?.country,
+        // Flatten legal_representative object
+        legal_rep_first_name: profile_data.legal_representative?.first_name,
+        legal_rep_last_name: profile_data.legal_representative?.last_name,
+        legal_rep_email: profile_data.legal_representative?.email,
+        legal_rep_phone_number: profile_data.legal_representative?.phone_number,
+        legal_rep_whatsapp_number:
+          profile_data.legal_representative?.whatsapp_number,
+      };
+
+      createdProfile = await prisma.companyProfile.create({
+        data: companyData,
       });
     } else {
-      createdProfile = await Consultant.create({
-        user: userId,
-        ...profile_data,
+      // Transform nested objects to flat structure for Prisma
+      const consultantData = {
+        userId: userId,
+        consultant_name: profile_data.consultant_name,
+        consultant_email: profile_data.consultant_email,
+        use_signup_email: profile_data.use_signup_email ?? false,
+        description: profile_data.description,
+        use_signup_info: profile_data.use_signup_info ?? false,
+        use_signup_phone: profile_data.use_signup_phone ?? false,
+        // Flatten location object
+        location_address: profile_data.location?.address,
+        location_postal_code: profile_data.location?.postal_code,
+        location_country: profile_data.location?.country,
+        // Flatten personal_info object
+        personal_info_first_name: profile_data.personal_info?.first_name,
+        personal_info_last_name: profile_data.personal_info?.last_name,
+        personal_info_email: profile_data.personal_info?.email,
+        personal_info_phone_number: profile_data.personal_info?.phone_number,
+      };
+
+      createdProfile = await prisma.consultantProfile.create({
+        data: consultantData,
       });
     }
 
-    existingUser.account_created = true;
-    existingUser.profile_type = profile_type;
-    existingUser.profile = createdProfile._id;
-    await existingUser.save();
+    // Update user with profile reference
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        account_created: true,
+        profile_type: profile_type,
+        profileId: createdProfile.id,
+      },
+    });
 
     res.status(201).json({
       success: true,
       message: `${profile_type} profile created successfully.`,
-      profile_id: createdProfile._id,
+      profile_id: createdProfile.id,
       data: createdProfile,
     });
   } catch (err) {
@@ -62,25 +108,96 @@ export const createUserProfile = async (req, res) => {
 export const getUserProfile = async (req, res) => {
   try {
     const userId = req.params._id;
-    const user = await User.findById(userId)
-      .select("-password -refreshToken")
-      .populate("profile");
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phoneNumber: true,
+        account_created: true,
+        profile_type: true,
+        profileId: true,
+        unregister_requested: true,
+        companyProfile: true,
+        consultantProfile: true,
+      },
+    });
 
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
+    // Build the profile object based on profile_type
+    let profile = null;
+    if (user.profile_type === "company" && user.companyProfile) {
+      // Transform flat structure back to nested for backward compatibility
+      profile = {
+        _id: user.companyProfile.id,
+        user: user.companyProfile.userId,
+        legal_company_name: user.companyProfile.legal_company_name,
+        country_of_incorporation: user.companyProfile.country_of_incorporation,
+        vat_number: user.companyProfile.vat_number,
+        company_email: user.companyProfile.company_email,
+        use_signup_email: user.companyProfile.use_signup_email,
+        description: user.companyProfile.description,
+        use_signup_info: user.companyProfile.use_signup_info,
+        use_signup_phone: user.companyProfile.use_signup_phone,
+        location: {
+          address: user.companyProfile.location_address,
+          postal_code: user.companyProfile.location_postal_code,
+          country: user.companyProfile.location_country,
+        },
+        legal_representative: {
+          first_name: user.companyProfile.legal_rep_first_name,
+          last_name: user.companyProfile.legal_rep_last_name,
+          email: user.companyProfile.legal_rep_email,
+          phone_number: user.companyProfile.legal_rep_phone_number,
+          whatsapp_number: user.companyProfile.legal_rep_whatsapp_number,
+        },
+        createdAt: user.companyProfile.createdAt,
+        updatedAt: user.companyProfile.updatedAt,
+      };
+    } else if (user.profile_type === "consultant" && user.consultantProfile) {
+      // Transform flat structure back to nested for backward compatibility
+      profile = {
+        _id: user.consultantProfile.id,
+        user: user.consultantProfile.userId,
+        consultant_name: user.consultantProfile.consultant_name,
+        consultant_email: user.consultantProfile.consultant_email,
+        use_signup_email: user.consultantProfile.use_signup_email,
+        description: user.consultantProfile.description,
+        use_signup_info: user.consultantProfile.use_signup_info,
+        use_signup_phone: user.consultantProfile.use_signup_phone,
+        location: {
+          address: user.consultantProfile.location_address,
+          postal_code: user.consultantProfile.location_postal_code,
+          country: user.consultantProfile.location_country,
+        },
+        personal_info: {
+          first_name: user.consultantProfile.personal_info_first_name,
+          last_name: user.consultantProfile.personal_info_last_name,
+          email: user.consultantProfile.personal_info_email,
+          phone_number: user.consultantProfile.personal_info_phone_number,
+        },
+        createdAt: user.consultantProfile.createdAt,
+        updatedAt: user.consultantProfile.updatedAt,
+      };
+    }
+
     res.status(200).json({
       success: true,
       user: {
-        _id: user._id,
+        _id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         phoneNumber: user.phoneNumber,
         account_created: user.account_created,
         profile_type: user.profile_type,
-        profile: user.profile,
+        profile: profile,
         unregister_requested: user.unregister_requested,
       },
     });
@@ -90,10 +207,10 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
-
 export const updateUserProfile = async (req, res) => {
   try {
     const { profile_id, profile_type, profile_data } = req.body;
+
     if (!["company", "consultant"].includes(profile_type)) {
       return res.status(400).json({ message: "Invalid profile type." });
     }
@@ -101,9 +218,13 @@ export const updateUserProfile = async (req, res) => {
     // First, fetch the profile to verify ownership
     let profileDoc;
     if (profile_type === "company") {
-      profileDoc = await Company.findById(profile_id);
+      profileDoc = await prisma.companyProfile.findUnique({
+        where: { id: profile_id },
+      });
     } else {
-      profileDoc = await Consultant.findById(profile_id);
+      profileDoc = await prisma.consultantProfile.findUnique({
+        where: { id: profile_id },
+      });
     }
 
     if (!profileDoc) {
@@ -114,7 +235,7 @@ export const updateUserProfile = async (req, res) => {
     }
 
     // Verify ownership: user can only update their own profile
-    if (profileDoc.user.toString() !== req.user._id.toString()) {
+    if (profileDoc.userId !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: "Unauthorized: You can only update your own profile.",
@@ -124,17 +245,67 @@ export const updateUserProfile = async (req, res) => {
     // Now proceed with update
     let updatedProfile;
     if (profile_type === "company") {
-      updatedProfile = await Company.findByIdAndUpdate(
-        profile_id,
-        { $set: profile_data },
-        { new: true, runValidators: true }
+      // Transform nested objects to flat structure for Prisma
+      const updateData = {
+        legal_company_name: profile_data.legal_company_name,
+        country_of_incorporation: profile_data.country_of_incorporation,
+        vat_number: profile_data.vat_number,
+        company_email: profile_data.company_email,
+        use_signup_email: profile_data.use_signup_email,
+        description: profile_data.description,
+        use_signup_info: profile_data.use_signup_info,
+        use_signup_phone: profile_data.use_signup_phone,
+        // Flatten location object
+        location_address: profile_data.location?.address,
+        location_postal_code: profile_data.location?.postal_code,
+        location_country: profile_data.location?.country,
+        // Flatten legal_representative object
+        legal_rep_first_name: profile_data.legal_representative?.first_name,
+        legal_rep_last_name: profile_data.legal_representative?.last_name,
+        legal_rep_email: profile_data.legal_representative?.email,
+        legal_rep_phone_number: profile_data.legal_representative?.phone_number,
+        legal_rep_whatsapp_number:
+          profile_data.legal_representative?.whatsapp_number,
+      };
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(
+        (key) => updateData[key] === undefined && delete updateData[key]
       );
+
+      updatedProfile = await prisma.companyProfile.update({
+        where: { id: profile_id },
+        data: updateData,
+      });
     } else {
-      updatedProfile = await Consultant.findByIdAndUpdate(
-        profile_id,
-        { $set: profile_data },
-        { new: true, runValidators: true }
+      // Transform nested objects to flat structure for Prisma
+      const updateData = {
+        consultant_name: profile_data.consultant_name,
+        consultant_email: profile_data.consultant_email,
+        use_signup_email: profile_data.use_signup_email,
+        description: profile_data.description,
+        use_signup_info: profile_data.use_signup_info,
+        use_signup_phone: profile_data.use_signup_phone,
+        // Flatten location object
+        location_address: profile_data.location?.address,
+        location_postal_code: profile_data.location?.postal_code,
+        location_country: profile_data.location?.country,
+        // Flatten personal_info object
+        personal_info_first_name: profile_data.personal_info?.first_name,
+        personal_info_last_name: profile_data.personal_info?.last_name,
+        personal_info_email: profile_data.personal_info?.email,
+        personal_info_phone_number: profile_data.personal_info?.phone_number,
+      };
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(
+        (key) => updateData[key] === undefined && delete updateData[key]
       );
+
+      updatedProfile = await prisma.consultantProfile.update({
+        where: { id: profile_id },
+        data: updateData,
+      });
     }
 
     res.status(200).json({

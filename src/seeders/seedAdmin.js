@@ -1,37 +1,44 @@
 import dotenv from "dotenv";
-import bcrypt from "bcrypt";
-import mongoose from "mongoose";
-import User from "../models/user.model";
+import prisma from "../lib/prisma.js";
+import { hashPassword } from "../utils/auth.utils.js";
 
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI;
-
 async function createAdmin() {
-    try {
-        await mongoose.connect(MONGO_URI);
-        console.log("✅ Connected to MongoDB");
+  try {
+    console.log("✅ Connected to database via Prisma");
 
-        const existingAdmin = await User.findOne({ email: "admin@nubred.com" });
-        if (existingAdmin) {
-            console.log("⚠️ Admin already exists.");
-            return process.exit(0);
-        }
+    const existingAdmin = await prisma.user.findUnique({
+      where: { email: "admin@nubred.com" },
+    });
 
-        const hashedPassword = await bcrypt.hash("Nubred@12", 10);
-
-        await User.create({
-            email: "admin@nubred.com",
-            password: hashedPassword,
-            role: "admin",
-        });
-
-        console.log("🎉 Admin created successfully!");
-        process.exit(0);
-    } catch (error) {
-        console.error("❌ Error creating admin:", error.message);
-        process.exit(1);
+    if (existingAdmin) {
+      console.log("⚠️ Admin already exists.");
+      await prisma.$disconnect();
+      return process.exit(0);
     }
+
+    const hashedPassword = await hashPassword("Nubred@12");
+
+    await prisma.user.create({
+      data: {
+        firstName: "Admin",
+        lastName: "User",
+        email: "admin@nubred.com",
+        password: hashedPassword,
+        phoneNumber: "+1234567890", // Required field
+        role: "admin",
+      },
+    });
+
+    console.log("🎉 Admin created successfully!");
+    await prisma.$disconnect();
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Error creating admin:", error.message);
+    await prisma.$disconnect();
+    process.exit(1);
+  }
 }
 
 createAdmin();
