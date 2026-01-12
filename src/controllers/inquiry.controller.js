@@ -1,4 +1,4 @@
-import Inquiry from "../models/Inquiry.model.js";
+import prisma from "../lib/prisma.js";
 
 export const createInquiry = async (req, res) => {
   const { name, email, contact, message } = req.body;
@@ -11,7 +11,15 @@ export const createInquiry = async (req, res) => {
   }
 
   try {
-    const inquiry = await Inquiry.create({ name, email, contact, message });
+    const inquiry = await prisma.inquiry.create({
+      data: {
+        name,
+        email,
+        contact,
+        message,
+      },
+    });
+
     res.status(201).json({
       success: true,
       message: "Inquiry created successfully",

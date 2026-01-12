@@ -1,20 +1,40 @@
 import cron from "node-cron";
-import User from "../models/user.model.js";
+import prisma from "../lib/prisma.js";
 
 export const scheduleUnregisterJob = () => {
-    cron.schedule("0 0 * * *", async () => {
+  cron.schedule("0 0 * * *", async () => {
+    try {
+      const now = new Date();
 
-        const now = new Date();
-        const usersToUnregister = await User.find({
-            unregister_requested: true,
-            unregister_scheduled_at: { $lte: now },
-            is_unregistered: false,
+      // Find all users who need to be unregistered
+      const usersToUnregister = await prisma.user.findMany({
+        where: {
+          unregister_requested: true,
+          unregister_scheduled_at: { lte: now },
+          is_unregistered: false,
+        },
+      });
+
+      // Update all users in bulk
+      if (usersToUnregister.length > 0) {
+        const userIds = usersToUnregister.map((user) => user.id);
+
+        await prisma.user.updateMany({
+          where: {
+            id: { in: userIds },
+          },
+          data: {
+            is_unregistered: true,
+            unregister_requested: false,
+          },
         });
 
-        for (const user of usersToUnregister) {
-            user.is_unregistered = true;
-            user.unregister_requested = false;
-            await user.save();
-        }
-    });
+        console.log(
+          `Unregistered ${usersToUnregister.length} users at ${now.toISOString()}`
+        );
+      }
+    } catch (error) {
+      console.error("Error in unregister job:", error);
+    }
+  });
 };

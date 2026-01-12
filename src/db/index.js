@@ -1,15 +1,15 @@
-import mongoose from "mongoose";
+import prisma from "../lib/prisma.js";
 
 const connectDB = async () => {
   try {
-    const connectionInstance = await mongoose.connect(
-      `${process.env.MONGODB_URI}/${process.env.DB_NAME}`
-    );
+    // Test the connection
+    await prisma.$connect();
     console.log(
-      `✅ Connected to DB: ${process.env.DB_NAME} on host ${connectionInstance.connection.host}`
+      `✅ Connected to DB: ${process.env.DB_NAME} via Prisma`
     );
   } catch (error) {
     console.log(`❌ Error connecting DB: ${error}`);
+    process.exit(1);
   }
 };
 

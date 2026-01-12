@@ -1,10 +1,10 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
-import User from "../models/user.model.js";
+import prisma from "../lib/prisma.js";
 
 export const jwtVerify = asyncHandler(async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
       success: false,
@@ -23,7 +23,35 @@ export const jwtVerify = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET_KEY);
-    const user = await User.findById(decoded?.id).select("-password");
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded?.id },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phoneNumber: true,
+        supabaseUserId: true,
+        role: true,
+        refreshToken: true,
+        accessToken: true,
+        ban_is_banned: true,
+        ban_type: true,
+        ban_reason: true,
+        ban_period: true,
+        account_created: true,
+        is_unregistered: true,
+        unregister_requested: true,
+        unregister_scheduled_at: true,
+        is_account_created_skipped: true,
+        is_onboarded: true,
+        profile_type: true,
+        profileId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       return res.status(401).json({

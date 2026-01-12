@@ -1,7 +1,12 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import User from "../models/user.model.js";
-import bcrypt from "bcrypt";
+import prisma from "../lib/prisma.js";
 import { getSupabaseClient } from "../utils/supabase.js";
+import {
+  hashPassword,
+  comparePassword,
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/auth.utils.js";
 
 const supabase = getSupabaseClient();
 
@@ -9,8 +14,11 @@ export const register = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, phoneNumber, password } = req.body;
 
   try {
-    const existingUser = await User.findOne({
-      $or: [{ email }, { phoneNumber }],
+    // Check for existing user by email or phone number
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, { phoneNumber }],
+      },
     });
 
     if (existingUser) {
@@ -26,19 +34,25 @@ export const register = asyncHandler(async (req, res) => {
       });
     }
 
-    const user = await User.create({
-      firstName,
-      lastName,
-      email,
-      phoneNumber,
-      password,
+    // Hash password before creating user
+    const hashedPassword = await hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        password: hashedPassword,
+      },
     });
+
     res.status(201).json({
       success: true,
       message: "User registered successfully",
       data: {
-        _id: user._id,
-        name: `${user.firstName} ${user.lastName}`,
+        _id: user.id,
+        name: `${user.firstName} ${user.lastName || ""}`.trim(),
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -58,7 +72,7 @@ export const register = asyncHandler(async (req, res) => {
 
 export const getUsers = asyncHandler(async (req, res) => {
   try {
-    const users = await User.find({});
+    const users = await prisma.user.findMany({});
     res.status(200).json({
       success: true,
       message: "Users fetched Successfully",
@@ -71,32 +85,44 @@ export const getUsers = asyncHandler(async (req, res) => {
     });
   }
 });
+
 export const getSingleUser = asyncHandler(async (req, res) => {
   try {
     const userId = req.params._id;
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     if (user) {
-      const { accessToken, refreshToken } = await generateTokens(user._id);
+      const { accessToken, refreshToken } = await generateTokens(user.id);
+
+      // Build ban object for backward compatibility
+      const ban = {
+        is_banned: user.ban_is_banned,
+        type: user.ban_type,
+        reason: user.ban_reason,
+        period: user.ban_period,
+      };
 
       res.status(200).json({
         success: true,
         message: "Users fetched Successfully",
         data: {
-          _id: user._id,
-          name: `${user.firstName} ${user.lastName}`,
+          _id: user.id,
+          name: `${user.firstName} ${user.lastName || ""}`.trim(),
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
           phoneNumber: user.phoneNumber,
           accessToken: accessToken || null,
           refreshToken: refreshToken || null,
-          profile: user.profile,
+          profile: user.profileId,
           profile_type: user.profile_type,
           is_unregistered: user.is_unregistered,
           account_created: user.account_created,
           is_onboarded: user.is_onboarded,
           is_account_created_skipped: user.is_account_created_skipped,
-          ban: user.ban,
+          ban: ban,
         },
       });
     } else {
@@ -115,13 +141,22 @@ export const getSingleUser = asyncHandler(async (req, res) => {
 
 export const generateTokens = async (userId) => {
   try {
-    const user = await User.findById(userId);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    if (!user) {
+      throw new Error("User not found");
+    }
 
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    const accessToken = generateAccessToken(user.id, user.email);
+    const refreshToken = generateRefreshToken(user.id);
+
+    // Update user with new refresh token
+    await prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken },
+    });
 
     return { accessToken, refreshToken };
   } catch (error) {
@@ -140,8 +175,11 @@ export const login = asyncHandler(async (req, res) => {
       message: "Please provide email and password",
     });
   }
+
   try {
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
     if (!user) {
       return res.status(400).json({
@@ -150,7 +188,7 @@ export const login = asyncHandler(async (req, res) => {
       });
     }
 
-    const isPasswordMatched = await bcrypt.compare(password, user.password);
+    const isPasswordMatched = await comparePassword(password, user.password);
 
     if (!isPasswordMatched) {
       return res.status(400).json({
@@ -159,27 +197,35 @@ export const login = asyncHandler(async (req, res) => {
       });
     }
 
-    const { accessToken, refreshToken } = await generateTokens(user._id);
+    const { accessToken, refreshToken } = await generateTokens(user.id);
+
+    // Build ban object for backward compatibility
+    const ban = {
+      is_banned: user.ban_is_banned,
+      type: user.ban_type,
+      reason: user.ban_reason,
+      period: user.ban_period,
+    };
 
     res.status(200).json({
       success: true,
       message: "User logged in successfully",
       user: {
-        _id: user._id,
-        name: `${user.firstName} ${user.lastName}`,
+        _id: user.id,
+        name: `${user.firstName} ${user.lastName || ""}`.trim(),
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
         phoneNumber: user.phoneNumber,
         accessToken: accessToken || null,
         refreshToken: refreshToken || null,
-        profile: user.profile,
+        profile: user.profileId,
         profile_type: user.profile_type,
         is_unregistered: user.is_unregistered,
         account_created: user.account_created,
         is_onboarded: user.is_onboarded,
         is_account_created_skipped: user.is_account_created_skipped,
-        ban: user.ban,
+        ban: ban,
       },
     });
   } catch (error) {
@@ -189,6 +235,7 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 });
+
 export const adminLogin = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -198,7 +245,9 @@ export const adminLogin = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Please provide email and password" });
   }
 
-  const user = await User.findOne({ email });
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
 
   if (!user) {
     return res.status(404).json({ success: false, message: "User not found" });
@@ -210,7 +259,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Access denied: not an admin" });
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await comparePassword(password, user.password);
 
   if (!isMatch) {
     return res
@@ -218,13 +267,13 @@ export const adminLogin = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Invalid password" });
   }
 
-  const { accessToken, refreshToken } = await generateTokens(user._id);
+  const { accessToken, refreshToken } = await generateTokens(user.id);
 
   res.status(200).json({
     success: true,
     message: "Admin logged in successfully",
     user: {
-      id: user._id,
+      id: user.id,
       email: user.email,
       role: user.role,
       accessToken,
@@ -235,8 +284,9 @@ export const adminLogin = asyncHandler(async (req, res) => {
 
 export const logout = asyncHandler(async (req, res) => {
   try {
-    await User.findByIdAndUpdate(req.user._id, {
-      refreshToken: undefined,
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { refreshToken: null },
     });
 
     res.status(200).json({
@@ -292,16 +342,22 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
     }
 
     // Look up user by Supabase ID first (primary identifier), then fallback to email
-    let user = await User.findOne({ supabaseUserId });
+    let user = await prisma.user.findUnique({
+      where: { supabaseUserId },
+    });
 
     if (!user) {
       // Fallback: check by email for existing users without Supabase ID
-      user = await User.findOne({ email });
+      user = await prisma.user.findUnique({
+        where: { email },
+      });
 
       if (user) {
         // Update existing user with Supabase ID
-        user.supabaseUserId = supabaseUserId;
-        await user.save();
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { supabaseUserId },
+        });
       }
     }
 
@@ -320,29 +376,43 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
         Math.random().toString(36).slice(-8) +
         Math.random().toString(36).slice(-8);
 
-      user = await User.create({
-        firstName,
-        lastName,
-        email,
-        supabaseUserId,
-        password: randomPassword,
-        phoneNumber: `+${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+      const hashedPassword = await hashPassword(randomPassword);
+
+      user = await prisma.user.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          supabaseUserId,
+          password: hashedPassword,
+          phoneNumber: `+${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+        },
       });
     }
 
     // Generate JWT tokens for backend session
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const accessToken = generateAccessToken(user.id, user.email);
+    const refreshToken = generateRefreshToken(user.id);
 
-    user.refreshToken = refreshToken;
-    await user.save();
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken },
+    });
+
+    // Build ban object for backward compatibility
+    const ban = {
+      is_banned: user.ban_is_banned,
+      type: user.ban_type,
+      reason: user.ban_reason,
+      period: user.ban_period,
+    };
 
     res.status(200).json({
       success: true,
       message: "Social login successful",
       user: {
-        _id: user._id,
-        name: `${user.firstName} ${user.lastName}`,
+        _id: user.id,
+        name: `${user.firstName} ${user.lastName || ""}`.trim(),
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         email: user.email,
@@ -350,13 +420,13 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
         provider,
         accessToken,
         refreshToken,
-        profile: user.profile,
+        profile: user.profileId,
         profile_type: user.profile_type,
         account_created: user.account_created,
         is_unregistered: user.is_unregistered,
         is_onboarded: user.is_onboarded,
         is_account_created_skipped: user.is_account_created_skipped,
-        ban: user.ban,
+        ban: ban,
       },
     });
   } catch (error) {
@@ -371,7 +441,10 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
 export const completeOnboarding = asyncHandler(async (req, res) => {
   const userId = req.body._id;
   try {
-    await User.findByIdAndUpdate(userId, { is_onboarded: true });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { is_onboarded: true },
+    });
     res.status(200).json({
       success: true,
       message: "Onboarding complete",
@@ -387,7 +460,10 @@ export const completeOnboarding = asyncHandler(async (req, res) => {
 export const accountCreationChecked = asyncHandler(async (req, res) => {
   const userId = req.body._id;
   try {
-    await User.findByIdAndUpdate(userId, { is_account_created_skipped: true });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { is_account_created_skipped: true },
+    });
     res.status(200).json({
       success: true,
       message: "User logged in successfully",
@@ -407,21 +483,23 @@ export const banUser = async (req, res) => {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  const user = await User.findById(userId);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
 
-  const banData = {
-    is_banned: true,
-    type: ban.type,
-    reason: ban.reason,
-    period: ban.period,
-  };
-
-  user.ban = banData;
-
-  await user.save();
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ban_is_banned: true,
+      ban_type: ban.type,
+      ban_reason: ban.reason,
+      ban_period: ban.period,
+    },
+  });
 
   res.status(200).json({
     success: true,
@@ -436,24 +514,30 @@ export const removeBan = async (req, res) => {
     return res.status(400).json({ message: "No user selected" });
   }
 
-  const user = await User.findById(userId);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
 
-  const banData = {
-    is_banned: false,
-  };
-
-  user.ban = banData;
-
-  await user.save();
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ban_is_banned: false,
+      ban_type: null,
+      ban_reason: null,
+      ban_period: null,
+    },
+  });
 
   res.status(200).json({
     success: true,
     message: `User has been unsuspended successfully.`,
   });
 };
+
 export const updateBan = async (req, res) => {
   const { userId, ban } = req.body;
 
@@ -461,21 +545,23 @@ export const updateBan = async (req, res) => {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  const user = await User.findById(userId);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
 
-  const banData = {
-    is_banned: true,
-    type: ban.type,
-    reason: ban.reason,
-    period: ban.type,
-  };
-
-  user.ban = banData;
-
-  await user.save();
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ban_is_banned: true,
+      ban_type: ban.type,
+      ban_reason: ban.reason,
+      ban_period: ban.period, // Note: This was ban.type in original code, which seems like a bug. Using ban.period as it should be.
+    },
+  });
 
   res.status(200).json({
     success: true,
@@ -486,69 +572,76 @@ export const updateBan = async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   try {
     const userId = req.params._id;
-    const user = await User.findByIdAndDelete(userId);
+    const user = await prisma.user.delete({
+      where: { id: userId },
+    });
+
     if (user) {
       res.status(200).json({
         success: true,
         message: "Account Deleted Successfully",
         data: user,
       });
-    } else {
+    }
+  } catch (error) {
+    if (error.code === "P2025") {
+      // Prisma error code for record not found
       res.status(404).json({
         success: false,
         message: "User not found",
-        data: user,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message ?? "Something went wrong",
       });
     }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message ?? "Something went wrong",
-    });
   }
 });
 
 export const registerAccount = asyncHandler(async (req, res) => {
   try {
     const { userId } = req.body;
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { is_unregistered: false },
-      { new: true }
-    );
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { is_unregistered: false },
+    });
+
     if (user) {
       res.status(200).json({
         success: true,
         message: "Account Registered successfully",
         data: user,
       });
-    } else {
+    }
+  } catch (error) {
+    if (error.code === "P2025") {
       res.status(404).json({
         success: false,
         message: "User not found",
       });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message ?? "Something went wrong",
+      });
     }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message ?? "Something went wrong",
-    });
   }
 });
+
 export const unregisterUser = asyncHandler(async (req, res) => {
   try {
     const userId = req.params._id;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
         unregister_requested: true,
         unregister_scheduled_at: new Date(
           Date.now() + 30 * 24 * 60 * 60 * 1000
         ),
       },
-      { new: true }
-    );
+    });
 
     if (user) {
       res.status(200).json({
@@ -556,34 +649,45 @@ export const unregisterUser = asyncHandler(async (req, res) => {
         message: "Unregistration scheduled in 30 days.",
         data: user,
       });
-    } else {
+    }
+  } catch (error) {
+    if (error.code === "P2025") {
       res.status(404).json({
         success: false,
         message: "User not found",
       });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error.message ?? "Something went wrong",
+      });
     }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message ?? "Something went wrong",
-    });
   }
 });
 
 export const cancelUnregister = asyncHandler(async (req, res) => {
-  const userId = req.params._id;
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { unregister_requested: false, unregister_scheduled_at: null },
-    { new: true }
-  );
-
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: "User not found",
+  try {
+    const userId = req.params._id;
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        unregister_requested: false,
+        unregister_scheduled_at: null,
+      },
     });
-  }
 
-  res.json({ success: true, message: "Unregistration canceled", data: user });
+    res.json({
+      success: true,
+      message: "Unregistration canceled",
+      data: user,
+    });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    throw error;
+  }
 });
