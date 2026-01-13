@@ -1,18 +1,18 @@
 import dotenv from "dotenv";
-import mongoose from "mongoose";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import app from "../../src/app.js";
-import User from "../../src/models/user.model.js";
+import prisma from "../../src/lib/prisma.js";
+import { hashPassword } from "../../src/utils/auth.utils.js";
 
 jest.setTimeout(30000); // 30s to avoid timeouts on DB operations
 
 // Use env if available, otherwise fallback to local test database
-const MONGO_URI =
-  process.env.MONGODB_URI ||
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
   "mongodb://127.0.0.1:27017/nubred-auth-test";
 
-describe("Auth/User Routes - Integration", () => {
+describe("Auth/User Routes - Integration (Prisma)", () => {
   const baseUrl = "/api/auth";
 
   const testUser = {
@@ -27,15 +27,15 @@ describe("Auth/User Routes - Integration", () => {
   let authToken;
 
   beforeAll(async () => {
-    if (!MONGO_URI) {
-      throw new Error("MONGODB_URI must be set in environment for tests");
+    if (!DATABASE_URL) {
+      throw new Error("DATABASE_URL must be set in environment for tests");
     }
 
-    // 1) Connect to Mongo
-    await mongoose.connect(MONGO_URI);
+    // Connect to database via Prisma
+    await prisma.$connect();
 
-    // 2) Ensure clean users collection before starting tests
-    await User.deleteMany({});
+    // Ensure clean users collection before starting tests
+    await prisma.user.deleteMany({});
 
     // Make sure token secrets exist (fallback for tests)
     process.env.ACCESS_TOKEN_SECRET_KEY =
@@ -46,8 +46,8 @@ describe("Auth/User Routes - Integration", () => {
 
   afterAll(async () => {
     // Clean up and close connection
-    await User.deleteMany({});
-    await mongoose.connection.close();
+    await prisma.user.deleteMany({});
+    await prisma.$disconnect();
   });
 
   describe("POST /register", () => {
@@ -72,12 +72,15 @@ describe("Auth/User Routes - Integration", () => {
 
     it("should fail when registering with existing phone number", async () => {
       // Create a user with a phone number
-      await User.create({
-        firstName: "Phone",
-        lastName: "Owner",
-        email: "phoneowner@example.com",
-        phoneNumber: "+19999999999",
-        password: "Password123!",
+      const hashedPw = await hashPassword("Password123!");
+      await prisma.user.create({
+        data: {
+          firstName: "Phone",
+          lastName: "Owner",
+          email: "phoneowner@example.com",
+          phoneNumber: "+19999999999",
+          password: hashedPw,
+        },
       });
 
       // Try register with different email but same phone
@@ -154,10 +157,10 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should return success:false when user does not exist", async () => {
-      const fakeId = "67575bc829f1edf36a7582aa";
+      const fakeId = "507f1f77bcf86cd799439011"; // Valid ObjectId format
       const res = await request(app).get(`${baseUrl}/user/${fakeId}`);
 
-      expect(res.statusCode).toBe(200); // your controller returns 200 with success:false
+      expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(false);
       expect(res.body.message).toBe("User Not Found");
     });
@@ -175,9 +178,11 @@ describe("Auth/User Routes - Integration", () => {
       let token = authToken;
 
       if (!token) {
-        const user = await User.findById(createdUserId);
+        const user = await prisma.user.findUnique({
+          where: { id: createdUserId },
+        });
         token = jwt.sign(
-          { id: user._id, email: user.email },
+          { id: user.id, email: user.email },
           process.env.ACCESS_TOKEN_SECRET_KEY,
           { expiresIn: "20m" }
         );
@@ -200,9 +205,6 @@ describe("Auth/User Routes - Integration", () => {
 
       expect(res.statusCode).toBe(401);
       expect(res.body.success).toBe(false);
-
-      // message depends on your jwtVerify implementation
-      // If you know exact message, assert it. Otherwise keep it loose:
       expect(res.body.message).toBeDefined();
     });
   });
@@ -216,7 +218,6 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should logout successfully with valid token", async () => {
-      // Create a fresh token for this test
       const freshToken = jwt.sign(
         { id: createdUserId, email: testUser.email },
         process.env.ACCESS_TOKEN_SECRET_KEY,
@@ -247,24 +248,31 @@ describe("Auth/User Routes - Integration", () => {
     const adminPassword = "AdminPass123!";
 
     beforeAll(async () => {
-      // Create a normal user (non-admin) for one of the tests
-      await User.create({
-        firstName: "Normal",
-        lastName: "User",
-        email: "normaluser@example.com",
-        phoneNumber: "+10000000002",
-        password: "NormalPass123!",
-        role: "user",
+      const hashedNormalPw = await hashPassword("NormalPass123!");
+      const hashedAdminPw = await hashPassword(adminPassword);
+
+      // Create a normal user (non-admin)
+      await prisma.user.create({
+        data: {
+          firstName: "Normal",
+          lastName: "User",
+          email: "normaluser@example.com",
+          phoneNumber: "+10000000002",
+          password: hashedNormalPw,
+          role: "user",
+        },
       });
 
       // Create an admin user
-      await User.create({
-        firstName: "Admin",
-        lastName: "User",
-        email: adminEmail,
-        phoneNumber: "+10000000003",
-        password: adminPassword,
-        role: "admin",
+      await prisma.user.create({
+        data: {
+          firstName: "Admin",
+          lastName: "User",
+          email: adminEmail,
+          phoneNumber: "+10000000003",
+          password: hashedAdminPw,
+          role: "admin",
+        },
       });
     });
 
@@ -332,15 +340,17 @@ describe("Auth/User Routes - Integration", () => {
     let onboardingToken;
 
     beforeAll(async () => {
-      // Create a dedicated user for onboarding tests
-      const onboardingUser = await User.create({
-        firstName: "Onboard",
-        lastName: "Test",
-        email: "onboard@example.com",
-        phoneNumber: "+10000001007",
-        password: "OnboardPass123!",
+      const hashedPw = await hashPassword("OnboardPass123!");
+      const onboardingUser = await prisma.user.create({
+        data: {
+          firstName: "Onboard",
+          lastName: "Test",
+          email: "onboard@example.com",
+          phoneNumber: "+10000001007",
+          password: hashedPw,
+        },
       });
-      onboardingUserId = onboardingUser._id.toString();
+      onboardingUserId = onboardingUser.id;
       onboardingToken = jwt.sign(
         { id: onboardingUserId, email: "onboard@example.com" },
         process.env.ACCESS_TOKEN_SECRET_KEY,
@@ -348,10 +358,7 @@ describe("Auth/User Routes - Integration", () => {
       );
     });
 
-    // Helper to generate a fresh token
-    const getFreshToken = () => {
-      return onboardingToken;
-    };
+    const getFreshToken = () => onboardingToken;
 
     it("should mark user as onboarded", async () => {
       const res = await request(app)
@@ -362,7 +369,9 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("Onboarding complete");
 
-      const user = await User.findById(onboardingUserId);
+      const user = await prisma.user.findUnique({
+        where: { id: onboardingUserId },
+      });
       expect(user.is_onboarded).toBe(true);
     });
 
@@ -375,7 +384,9 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("User logged in successfully");
 
-      const user = await User.findById(onboardingUserId);
+      const user = await prisma.user.findUnique({
+        where: { id: onboardingUserId },
+      });
       expect(user.is_account_created_skipped).toBe(true);
     });
 
@@ -400,14 +411,18 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("Unregistration canceled");
 
-      const user = await User.findById(onboardingUserId);
+      const user = await prisma.user.findUnique({
+        where: { id: onboardingUserId },
+      });
       expect(user.unregister_requested).toBe(false);
       expect(user.unregister_scheduled_at).toBeNull();
     });
 
     it("should register account again (is_unregistered=false)", async () => {
-      // First mark user as unregistered directly
-      await User.findByIdAndUpdate(onboardingUserId, { is_unregistered: true });
+      await prisma.user.update({
+        where: { id: onboardingUserId },
+        data: { is_unregistered: true },
+      });
 
       const res = await request(app)
         .post(`${baseUrl}/register-account`)
@@ -421,7 +436,7 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should return 404 when canceling unregister for non-existent user", async () => {
-      const fakeId = "67575bc829f1edf36a7582aa";
+      const fakeId = "507f1f77bcf86cd799439011";
 
       const res = await request(app)
         .post(`${baseUrl}/cancel-unregister/${fakeId}`)
@@ -439,43 +454,45 @@ describe("Auth/User Routes - Integration", () => {
     let userToBanId;
 
     beforeAll(async () => {
-      // Create an admin user for these protected routes
-      const adminUser = await User.create({
-        firstName: "Admin",
-        lastName: "Ban",
-        email: "adminban@example.com",
-        phoneNumber: "+10000001005",
-        password: "AdminPass123!",
-        role: "admin",
+      const hashedAdminPw = await hashPassword("AdminPass123!");
+      const hashedUserPw = await hashPassword("BanPass123!");
+
+      const adminUser = await prisma.user.create({
+        data: {
+          firstName: "Admin",
+          lastName: "Ban",
+          email: "adminban@example.com",
+          phoneNumber: "+10000001005",
+          password: hashedAdminPw,
+          role: "admin",
+        },
       });
-      adminUserId = adminUser._id.toString();
+      adminUserId = adminUser.id;
       adminToken = jwt.sign(
         { id: adminUserId, email: "adminban@example.com" },
         process.env.ACCESS_TOKEN_SECRET_KEY,
         { expiresIn: "20m" }
       );
 
-      // Create a user to be banned
-      const userToBan = await User.create({
-        firstName: "Ban",
-        lastName: "Test",
-        email: "bantest@example.com",
-        phoneNumber: "+10000001008",
-        password: "BanPass123!",
+      const userToBan = await prisma.user.create({
+        data: {
+          firstName: "Ban",
+          lastName: "Test",
+          email: "bantest@example.com",
+          phoneNumber: "+10000001008",
+          password: hashedUserPw,
+        },
       });
-      userToBanId = userToBan._id.toString();
+      userToBanId = userToBan.id;
     });
 
-    // Helper to generate a fresh token
-    const getFreshToken = () => {
-      return adminToken;
-    };
+    const getFreshToken = () => adminToken;
 
     it("should return 400 when banning without required fields", async () => {
       const res = await request(app)
         .post(`${baseUrl}/ban-user`)
         .set("Authorization", `Bearer ${getFreshToken()}`)
-        .send({}); // missing userId and ban
+        .send({});
 
       expect(res.statusCode).toBe(400);
       expect(res.body.message).toBe("Missing required fields");
@@ -486,7 +503,7 @@ describe("Auth/User Routes - Integration", () => {
         .post(`${baseUrl}/ban-user`)
         .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
-          userId: "67575bc829f1edf36a7582aa",
+          userId: "507f1f77bcf86cd799439011",
           ban: { type: "temporary", reason: "test", period: 7 },
         });
 
@@ -507,9 +524,11 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("User has been suspended successfully");
 
-      const user = await User.findById(userToBanId);
-      expect(user.ban.is_banned).toBe(true);
-      expect(user.ban.reason).toBe("violation");
+      const user = await prisma.user.findUnique({
+        where: { id: userToBanId },
+      });
+      expect(user.ban_is_banned).toBe(true);
+      expect(user.ban_reason).toBe("violation");
     });
 
     it("should return 400 when removing ban without userId", async () => {
@@ -526,7 +545,7 @@ describe("Auth/User Routes - Integration", () => {
       const res = await request(app)
         .post(`${baseUrl}/unban`)
         .set("Authorization", `Bearer ${getFreshToken()}`)
-        .send({ userId: "67575bc829f1edf36a7582aa" });
+        .send({ userId: "507f1f77bcf86cd799439011" });
 
       expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe("User not found");
@@ -542,8 +561,10 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("User has been unsuspended successfully.");
 
-      const user = await User.findById(userToBanId);
-      expect(user.ban.is_banned).toBe(false);
+      const user = await prisma.user.findUnique({
+        where: { id: userToBanId },
+      });
+      expect(user.ban_is_banned).toBe(false);
     });
 
     it("should return 400 when updating ban without required fields", async () => {
@@ -561,7 +582,7 @@ describe("Auth/User Routes - Integration", () => {
         .post(`${baseUrl}/update-ban`)
         .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
-          userId: "67575bc829f1edf36a7582aa",
+          userId: "507f1f77bcf86cd799439011",
           ban: { type: "permanent", reason: "test" },
         });
 
@@ -569,29 +590,25 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.message).toBe("User not found");
     });
 
-    it("should update ban successfully (or fail if period is required)", async () => {
+    it("should update ban successfully", async () => {
       const res = await request(app)
         .post(`${baseUrl}/update-ban`)
         .set("Authorization", `Bearer ${getFreshToken()}`)
         .send({
           userId: userToBanId,
-          ban: { type: "permanent", reason: "serious violation" },
+          ban: { type: "permanent", reason: "serious violation", period: 30 },
         });
 
-      expect([200, 500]).toContain(res.statusCode);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe("User has been banned updated");
 
-      if (res.statusCode === 200) {
-        // If it succeeds:
-        expect(res.body.success).toBe(true);
-        expect(res.body.message).toBe("User has been banned updated");
-
-        const user = await User.findById(userToBanId);
-        expect(user.ban.is_banned).toBe(true);
-        expect(user.ban.type).toBe("permanent");
-        expect(user.ban.reason).toBe("serious violation");
-      } else {
-        expect(res.body).toBeDefined();
-      }
+      const user = await prisma.user.findUnique({
+        where: { id: userToBanId },
+      });
+      expect(user.ban_is_banned).toBe(true);
+      expect(user.ban_type).toBe("permanent");
+      expect(user.ban_reason).toBe("serious violation");
     });
   });
 
@@ -601,40 +618,43 @@ describe("Auth/User Routes - Integration", () => {
     let adminToken;
 
     beforeAll(async () => {
-      // Create an admin user for these protected routes
-      const adminUser = await User.create({
-        firstName: "Admin",
-        lastName: "Delete",
-        email: "admindelete@example.com",
-        phoneNumber: "+10000001006",
-        password: "AdminPass123!",
-        role: "admin",
+      const hashedAdminPw = await hashPassword("AdminPass123!");
+      const hashedUserPw = await hashPassword("DeletePass123!");
+
+      const adminUser = await prisma.user.create({
+        data: {
+          firstName: "Admin",
+          lastName: "Delete",
+          email: "admindelete@example.com",
+          phoneNumber: "+10000001006",
+          password: hashedAdminPw,
+          role: "admin",
+        },
       });
-      adminUserId = adminUser._id.toString();
+      adminUserId = adminUser.id;
       adminToken = jwt.sign(
         { id: adminUserId, email: "admindelete@example.com" },
         process.env.ACCESS_TOKEN_SECRET_KEY,
         { expiresIn: "20m" }
       );
 
-      const userToDelete = await User.create({
-        firstName: "Delete",
-        lastName: "Me",
-        email: "deleteme@example.com",
-        phoneNumber: "+10000000004",
-        password: "DeletePass123!",
+      const userToDelete = await prisma.user.create({
+        data: {
+          firstName: "Delete",
+          lastName: "Me",
+          email: "deleteme@example.com",
+          phoneNumber: "+10000000004",
+          password: hashedUserPw,
+        },
       });
-      userToDeleteId = userToDelete._id.toString();
+      userToDeleteId = userToDelete.id;
     });
 
-    // Helper to generate a fresh token
-    const getFreshToken = () => {
-      return adminToken;
-    };
+    const getFreshToken = () => adminToken;
 
     it("should return 404 when deleting non-existing user", async () => {
       const res = await request(app)
-        .delete(`${baseUrl}/delete-user/67575bc829f1edf36a7582aa`)
+        .delete(`${baseUrl}/delete-user/507f1f77bcf86cd799439011`)
         .set("Authorization", `Bearer ${getFreshToken()}`);
 
       expect(res.statusCode).toBe(404);
@@ -650,9 +670,11 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.message).toBe("Account Deleted Successfully");
-      expect(res.body.data._id).toBe(userToDeleteId);
+      expect(res.body.data.id).toBe(userToDeleteId);
 
-      const deleted = await User.findById(userToDeleteId);
+      const deleted = await prisma.user.findUnique({
+        where: { id: userToDeleteId },
+      });
       expect(deleted).toBeNull();
     });
   });
@@ -661,18 +683,21 @@ describe("Auth/User Routes - Integration", () => {
     let testUserId;
 
     beforeAll(async () => {
-      const testUser = await User.create({
-        firstName: "Token",
-        lastName: "Test",
-        email: "token.test@example.com",
-        phoneNumber: "+10000009999",
-        password: "Password123!",
+      const hashedPw = await hashPassword("Password123!");
+      const testUser = await prisma.user.create({
+        data: {
+          firstName: "Token",
+          lastName: "Test",
+          email: "token.test@example.com",
+          phoneNumber: "+10000009999",
+          password: hashedPw,
+        },
       });
-      testUserId = testUser._id.toString();
+      testUserId = testUser.id;
     });
 
     afterAll(async () => {
-      await User.findByIdAndDelete(testUserId);
+      await prisma.user.delete({ where: { id: testUserId } });
     });
 
     it("should return 401 for expired token", async () => {
@@ -740,21 +765,24 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should return 401 when user is deleted but token is valid", async () => {
-      const tempUser = await User.create({
-        firstName: "Temp",
-        lastName: "User",
-        email: "temp.deleted@example.com",
-        phoneNumber: "+10000008888",
-        password: "Password123!",
+      const hashedPw = await hashPassword("Password123!");
+      const tempUser = await prisma.user.create({
+        data: {
+          firstName: "Temp",
+          lastName: "User",
+          email: "temp.deleted@example.com",
+          phoneNumber: "+10000008888",
+          password: hashedPw,
+        },
       });
 
       const validToken = jwt.sign(
-        { id: tempUser._id.toString(), email: tempUser.email },
+        { id: tempUser.id, email: tempUser.email },
         process.env.ACCESS_TOKEN_SECRET_KEY,
         { expiresIn: "20m" }
       );
 
-      await User.findByIdAndDelete(tempUser._id);
+      await prisma.user.delete({ where: { id: tempUser.id } });
 
       const res = await request(app)
         .get(`${baseUrl}/users`)
@@ -781,15 +809,18 @@ describe("Auth/User Routes - Integration", () => {
     let adminToken;
 
     beforeAll(async () => {
-      const admin = await User.create({
-        firstName: "Admin",
-        lastName: "Cancel",
-        email: "admin.cancel@example.com",
-        phoneNumber: "+10000007777",
-        password: "Password123!",
-        role: "admin",
+      const hashedPw = await hashPassword("Password123!");
+      const admin = await prisma.user.create({
+        data: {
+          firstName: "Admin",
+          lastName: "Cancel",
+          email: "admin.cancel@example.com",
+          phoneNumber: "+10000007777",
+          password: hashedPw,
+          role: "admin",
+        },
       });
-      adminUserId = admin._id.toString();
+      adminUserId = admin.id;
       adminToken = jwt.sign(
         { id: adminUserId, email: admin.email },
         process.env.ACCESS_TOKEN_SECRET_KEY,
@@ -798,11 +829,11 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     afterAll(async () => {
-      await User.findByIdAndDelete(adminUserId);
+      await prisma.user.delete({ where: { id: adminUserId } });
     });
 
     it("should return 404 when canceling unregister for non-existent user", async () => {
-      const fakeUserId = "67575bc829f1edf36a7582aa";
+      const fakeUserId = "507f1f77bcf86cd799439011";
       const res = await request(app)
         .post(`${baseUrl}/cancel-unregister/${fakeUserId}`)
         .set("Authorization", `Bearer ${adminToken}`);
@@ -813,18 +844,21 @@ describe("Auth/User Routes - Integration", () => {
     });
 
     it("should successfully cancel unregister for existing user", async () => {
-      const testUser = await User.create({
-        firstName: "Unregister",
-        lastName: "Test",
-        email: "unregister.test@example.com",
-        phoneNumber: "+10000006666",
-        password: "Password123!",
-        unregister_requested: true,
-        unregister_scheduled_at: new Date(),
+      const hashedPw = await hashPassword("Password123!");
+      const testUser = await prisma.user.create({
+        data: {
+          firstName: "Unregister",
+          lastName: "Test",
+          email: "unregister.test@example.com",
+          phoneNumber: "+10000006666",
+          password: hashedPw,
+          unregister_requested: true,
+          unregister_scheduled_at: new Date(),
+        },
       });
 
       const res = await request(app)
-        .post(`${baseUrl}/cancel-unregister/${testUser._id}`)
+        .post(`${baseUrl}/cancel-unregister/${testUser.id}`)
         .set("Authorization", `Bearer ${adminToken}`);
 
       expect(res.statusCode).toBe(200);
@@ -833,7 +867,7 @@ describe("Auth/User Routes - Integration", () => {
       expect(res.body.data.unregister_requested).toBe(false);
       expect(res.body.data.unregister_scheduled_at).toBeNull();
 
-      await User.findByIdAndDelete(testUser._id);
+      await prisma.user.delete({ where: { id: testUser.id } });
     });
   });
 });

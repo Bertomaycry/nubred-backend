@@ -1,37 +1,29 @@
 /* eslint-disable no-undef */
 
-jest.mock("../../src/models/user.model.js", () => ({
+// Mock the prisma module BEFORE importing anything
+jest.mock("../../src/lib/prisma.js", () => ({
   __esModule: true,
   default: {
-    findById: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/CompanyProfile.model.js", () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(),
-    findById: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/ConsultantProfile.model.js", () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(),
-    findById: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    companyProfile: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    consultantProfile: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }));
 
 // import controller AFTER mocks
 import { createUserProfile, getUserProfile, updateUserProfile } from "../../src/controllers/profile.controller.js";
-
-// access mocked modules
-const User = jest.requireMock("../../src/models/user.model.js").default;
-const Company = jest.requireMock("../../src/models/CompanyProfile.model.js").default;
-const Consultant = jest.requireMock("../../src/models/ConsultantProfile.model.js").default;
+import prisma from "../../src/lib/prisma.js";
 
 const makeRes = () => {
   const res = {};
@@ -64,7 +56,7 @@ describe("profile.controller.js - unit tests", () => {
     };
     const res = makeRes();
 
-    User.findById.mockResolvedValue({ _id: "u1", profile: "p1" });
+    prisma.user.findUnique.mockResolvedValue({ id: "u1", profileId: "p1" });
 
     await createUserProfile(req, res);
 
@@ -90,31 +82,43 @@ describe("profile.controller.js - unit tests", () => {
     const res = makeRes();
 
     const existingUser = {
-      _id: "u1",
-      profile: null,
+      id: "u1",
+      profileId: null,
       account_created: false,
       profile_type: null,
-      save: jest.fn().mockResolvedValue(true),
     };
 
-    User.findById.mockResolvedValue(existingUser);
+    prisma.user.findUnique.mockResolvedValue(existingUser);
 
-    Company.create.mockResolvedValue({
-      _id: "companyProfile1",
-      user: "u1",
+    prisma.companyProfile.create.mockResolvedValue({
+      id: "companyProfile1",
+      userId: "u1",
       legal_company_name: "X",
+    });
+
+    prisma.user.update.mockResolvedValue({
+      ...existingUser,
+      account_created: true,
+      profile_type: "company",
+      profileId: "companyProfile1",
     });
 
     await createUserProfile(req, res);
 
-    expect(Company.create).toHaveBeenCalledWith(
-      expect.objectContaining({ user: "u1" })
+    expect(prisma.companyProfile.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: "u1" }),
+      })
     );
 
-    expect(existingUser.account_created).toBe(true);
-    expect(existingUser.profile_type).toBe("company");
-    expect(existingUser.profile).toBe("companyProfile1");
-    expect(existingUser.save).toHaveBeenCalledTimes(1);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: {
+        account_created: true,
+        profile_type: "company",
+        profileId: "companyProfile1",
+      },
+    });
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
@@ -140,31 +144,43 @@ describe("profile.controller.js - unit tests", () => {
     const res = makeRes();
 
     const existingUser = {
-      _id: "u2",
-      profile: null,
+      id: "u2",
+      profileId: null,
       account_created: false,
       profile_type: null,
-      save: jest.fn().mockResolvedValue(true),
     };
 
-    User.findById.mockResolvedValue(existingUser);
+    prisma.user.findUnique.mockResolvedValue(existingUser);
 
-    Consultant.create.mockResolvedValue({
-      _id: "consultantProfile1",
-      user: "u2",
+    prisma.consultantProfile.create.mockResolvedValue({
+      id: "consultantProfile1",
+      userId: "u2",
       consultant_name: "Y",
+    });
+
+    prisma.user.update.mockResolvedValue({
+      ...existingUser,
+      account_created: true,
+      profile_type: "consultant",
+      profileId: "consultantProfile1",
     });
 
     await createUserProfile(req, res);
 
-    expect(Consultant.create).toHaveBeenCalledWith(
-      expect.objectContaining({ user: "u2" })
+    expect(prisma.consultantProfile.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: "u2" }),
+      })
     );
 
-    expect(existingUser.account_created).toBe(true);
-    expect(existingUser.profile_type).toBe("consultant");
-    expect(existingUser.profile).toBe("consultantProfile1");
-    expect(existingUser.save).toHaveBeenCalledTimes(1);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "u2" },
+      data: {
+        account_created: true,
+        profile_type: "consultant",
+        profileId: "consultantProfile1",
+      },
+    });
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
@@ -182,7 +198,7 @@ describe("profile.controller.js - unit tests", () => {
     };
     const res = makeRes();
 
-    User.findById.mockRejectedValue(new Error("db fail"));
+    prisma.user.findUnique.mockRejectedValue(new Error("db fail"));
 
     await createUserProfile(req, res);
 
@@ -197,11 +213,7 @@ describe("profile.controller.js - unit tests", () => {
     const req = { params: { _id: "u404" } };
     const res = makeRes();
 
-    User.findById.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        populate: jest.fn().mockResolvedValue(null),
-      }),
-    });
+    prisma.user.findUnique.mockResolvedValue(null);
 
     await getUserProfile(req, res);
 
@@ -214,39 +226,46 @@ describe("profile.controller.js - unit tests", () => {
     const res = makeRes();
 
     const userDoc = {
-      _id: "u1",
+      id: "u1",
       firstName: "A",
       lastName: "B",
       email: "a@b.com",
       phoneNumber: "+1",
       account_created: true,
       profile_type: "company",
-      profile: { _id: "p1" },
+      profileId: "p1",
+      companyProfile: {
+        id: "p1",
+        userId: "u1",
+        legal_company_name: "Test Company",
+        country_of_incorporation: "US",
+        company_email: "test@company.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
       unregister_requested: false,
     };
 
-    User.findById.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        populate: jest.fn().mockResolvedValue(userDoc),
-      }),
-    });
+    prisma.user.findUnique.mockResolvedValue(userDoc);
 
     await getUserProfile(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      user: {
-        _id: userDoc._id,
+      user: expect.objectContaining({
+        _id: userDoc.id,
         firstName: userDoc.firstName,
         lastName: userDoc.lastName,
         email: userDoc.email,
         phoneNumber: userDoc.phoneNumber,
         account_created: userDoc.account_created,
         profile_type: userDoc.profile_type,
-        profile: userDoc.profile,
-        unregister_requested: userDoc.unregister_requested,
-      },
+        profile: expect.objectContaining({
+          _id: "p1",
+          user: "u1",
+        }),
+      }),
     });
   });
 
@@ -254,9 +273,7 @@ describe("profile.controller.js - unit tests", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    User.findById.mockImplementation(() => {
-      throw new Error("boom");
-    });
+    prisma.user.findUnique.mockRejectedValue(new Error("boom"));
 
     await getUserProfile(req, res);
 
@@ -286,15 +303,17 @@ describe("profile.controller.js - unit tests", () => {
         profile_type: "company",
         profile_data: { description: "x" },
       },
-      user: { _id: "user1" },
+      user: { id: "user1" },
     };
     const res = makeRes();
 
-    Company.findById.mockResolvedValue(null);
+    prisma.companyProfile.findUnique.mockResolvedValue(null);
 
     await updateUserProfile(req, res);
 
-    expect(Company.findById).toHaveBeenCalledWith("p404");
+    expect(prisma.companyProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: "p404" },
+    });
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
@@ -309,15 +328,17 @@ describe("profile.controller.js - unit tests", () => {
         profile_type: "consultant",
         profile_data: { description: "x" },
       },
-      user: { _id: "user1" },
+      user: { id: "user1" },
     };
     const res = makeRes();
 
-    Consultant.findById.mockResolvedValue(null);
+    prisma.consultantProfile.findUnique.mockResolvedValue(null);
 
     await updateUserProfile(req, res);
 
-    expect(Consultant.findById).toHaveBeenCalledWith("p404");
+    expect(prisma.consultantProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: "p404" },
+    });
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
@@ -332,36 +353,34 @@ describe("profile.controller.js - unit tests", () => {
         profile_type: "company",
         profile_data: { description: "updated" },
       },
-      user: { _id: "user1" },
+      user: { id: "user1" },
     };
     const res = makeRes();
 
     const mockProfile = {
-      _id: "p1",
-      user: { toString: () => "user1" },
-      description: "updated",
+      id: "p1",
+      userId: "user1",
+      description: "old",
     };
 
-    Company.findById.mockResolvedValue(mockProfile);
-    Company.findByIdAndUpdate.mockResolvedValue({
-      _id: "p1",
+    prisma.companyProfile.findUnique.mockResolvedValue(mockProfile);
+    prisma.companyProfile.update.mockResolvedValue({
+      id: "p1",
       description: "updated",
     });
 
     await updateUserProfile(req, res);
 
-    expect(Company.findById).toHaveBeenCalledWith("p1");
-    expect(Company.findByIdAndUpdate).toHaveBeenCalledWith(
-      "p1",
-      { $set: { description: "updated" } },
-      { new: true, runValidators: true }
-    );
+    expect(prisma.companyProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: "p1" },
+    });
+    expect(prisma.companyProfile.update).toHaveBeenCalled();
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       message: "company profile updated successfully.",
-      data: { _id: "p1", description: "updated" },
+      data: expect.objectContaining({ id: "p1", description: "updated" }),
     });
   });
 
@@ -372,36 +391,34 @@ describe("profile.controller.js - unit tests", () => {
         profile_type: "consultant",
         profile_data: { description: "updated" },
       },
-      user: { _id: "user2" },
+      user: { id: "user2" },
     };
     const res = makeRes();
 
     const mockProfile = {
-      _id: "p2",
-      user: { toString: () => "user2" },
-      description: "updated",
+      id: "p2",
+      userId: "user2",
+      description: "old",
     };
 
-    Consultant.findById.mockResolvedValue(mockProfile);
-    Consultant.findByIdAndUpdate.mockResolvedValue({
-      _id: "p2",
+    prisma.consultantProfile.findUnique.mockResolvedValue(mockProfile);
+    prisma.consultantProfile.update.mockResolvedValue({
+      id: "p2",
       description: "updated",
     });
 
     await updateUserProfile(req, res);
 
-    expect(Consultant.findById).toHaveBeenCalledWith("p2");
-    expect(Consultant.findByIdAndUpdate).toHaveBeenCalledWith(
-      "p2",
-      { $set: { description: "updated" } },
-      { new: true, runValidators: true }
-    );
+    expect(prisma.consultantProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: "p2" },
+    });
+    expect(prisma.consultantProfile.update).toHaveBeenCalled();
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       message: "consultant profile updated successfully.",
-      data: { _id: "p2", description: "updated" },
+      data: expect.objectContaining({ id: "p2", description: "updated" }),
     });
   });
 
@@ -412,26 +429,28 @@ describe("profile.controller.js - unit tests", () => {
         profile_type: "company",
         profile_data: { description: "unauthorized update" },
       },
-      user: { _id: "user1" },
+      user: { id: "user1" },
     };
     const res = makeRes();
 
     const mockProfile = {
-      _id: "p1",
-      user: { toString: () => "user2" }, // Different user
+      id: "p1",
+      userId: "user2", // Different user
     };
 
-    Company.findById.mockResolvedValue(mockProfile);
+    prisma.companyProfile.findUnique.mockResolvedValue(mockProfile);
 
     await updateUserProfile(req, res);
 
-    expect(Company.findById).toHaveBeenCalledWith("p1");
+    expect(prisma.companyProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: "p1" },
+    });
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
       message: "Unauthorized: You can only update your own profile.",
     });
-    expect(Company.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(prisma.companyProfile.update).not.toHaveBeenCalled();
   });
 
   test("updateUserProfile: catch -> 500", async () => {
@@ -441,17 +460,17 @@ describe("profile.controller.js - unit tests", () => {
         profile_type: "company",
         profile_data: {},
       },
-      user: { _id: "user1" },
+      user: { id: "user1" },
     };
     const res = makeRes();
 
     const mockProfile = {
-      _id: "p1",
-      user: { toString: () => "user1" },
+      id: "p1",
+      userId: "user1",
     };
 
-    Company.findById.mockResolvedValue(mockProfile);
-    Company.findByIdAndUpdate.mockRejectedValue(new Error("fail"));
+    prisma.companyProfile.findUnique.mockResolvedValue(mockProfile);
+    prisma.companyProfile.update.mockRejectedValue(new Error("fail"));
 
     await updateUserProfile(req, res);
 

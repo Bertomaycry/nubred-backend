@@ -1,17 +1,11 @@
 import dotenv from "dotenv";
-import mongoose from "mongoose";
 import request from "supertest";
 import jwt from "jsonwebtoken";
 import app from "../../src/app.js";
-import User from "../../src/models/user.model.js";
-import Company from "../../src/models/CompanyProfile.model.js";
-import Consultant from "../../src/models/ConsultantProfile.model.js";
+import prisma from "../../src/lib/prisma.js";
+import { hashPassword } from "../../src/utils/auth.utils.js";
 
 jest.setTimeout(30000);
-
-const MONGO_URI =
-  process.env.MONGODB_URI ||
-  "mongodb://127.0.0.1:27017/nubred-test";
 
 describe("Profile Routes - Integration", () => {
   const baseUrl = "/api/profile";
@@ -26,41 +20,47 @@ describe("Profile Routes - Integration", () => {
       process.env.ACCESS_TOKEN_SECRET_KEY = "tekkdev_12_access";
     }
 
-    await mongoose.connect(MONGO_URI);
+    await prisma.$connect();
 
     // Clean collections
     await Promise.all([
-      User.deleteMany({}),
-      Company.deleteMany({}),
-      Consultant.deleteMany({}),
+      prisma.user.deleteMany({}),
+      prisma.companyProfile.deleteMany({}),
+      prisma.consultantProfile.deleteMany({}),
     ]);
 
-    // Create users
-    userCompany = await User.create({
-      firstName: "Comp",
-      lastName: "User",
-      email: "comp.user@example.com",
-      phoneNumber: "+10000001001",
-      password: "Password123!",
+    // Create users with hashed passwords
+    const hashedPassword = await hashPassword("Password123!");
+
+    userCompany = await prisma.user.create({
+      data: {
+        firstName: "Comp",
+        lastName: "User",
+        email: "comp.user@example.com",
+        phoneNumber: "+10000001001",
+        password: hashedPassword,
+      },
     });
 
-    userConsultant = await User.create({
-      firstName: "Cons",
-      lastName: "User",
-      email: "cons.user@example.com",
-      phoneNumber: "+10000001002",
-      password: "Password123!",
+    userConsultant = await prisma.user.create({
+      data: {
+        firstName: "Cons",
+        lastName: "User",
+        email: "cons.user@example.com",
+        phoneNumber: "+10000001002",
+        password: hashedPassword,
+      },
     });
 
     // Tokens for jwtVerify middleware
     tokenCompany = jwt.sign(
-      { id: userCompany._id.toString(), email: userCompany.email },
+      { id: userCompany.id, email: userCompany.email },
       process.env.ACCESS_TOKEN_SECRET_KEY,
       { expiresIn: "20m" }
     );
 
     tokenConsultant = jwt.sign(
-      { id: userConsultant._id.toString(), email: userConsultant.email },
+      { id: userConsultant.id, email: userConsultant.email },
       process.env.ACCESS_TOKEN_SECRET_KEY,
       { expiresIn: "20m" }
     );
@@ -68,17 +68,17 @@ describe("Profile Routes - Integration", () => {
 
   afterAll(async () => {
     await Promise.all([
-      User.deleteMany({}),
-      Company.deleteMany({}),
-      Consultant.deleteMany({}),
+      prisma.user.deleteMany({}),
+      prisma.companyProfile.deleteMany({}),
+      prisma.consultantProfile.deleteMany({}),
     ]);
-    await mongoose.connection.close();
+    await prisma.$disconnect();
   });
 
   describe("POST /create", () => {
     it("should return 400 for invalid profile type", async () => {
       const res = await request(app).post(`${baseUrl}/create`).send({
-        _id: userCompany._id.toString(),
+        _id: userCompany.id,
         profile_type: "invalidType",
         profile_data: {},
       });
@@ -106,7 +106,7 @@ describe("Profile Routes - Integration", () => {
 
     it("should create COMPANY profile successfully (201)", async () => {
       const res = await request(app).post(`${baseUrl}/create`).send({
-        _id: userCompany._id.toString(),
+        _id: userCompany.id,
         profile_type: "company",
         profile_data: {
           legal_company_name: "Test Company LLC",
@@ -129,15 +129,17 @@ describe("Profile Routes - Integration", () => {
       expect(res.body.profile_id).toBeDefined();
       expect(res.body.message).toBe("company profile created successfully.");
 
-      const updatedUser = await User.findById(userCompany._id);
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: userCompany.id },
+      });
       expect(updatedUser.account_created).toBe(true);
       expect(updatedUser.profile_type).toBe("company");
-      expect(updatedUser.profile).toBeDefined();
+      expect(updatedUser.profileId).toBeDefined();
     });
 
     it("should return 400 when profile already exists for user", async () => {
       const res = await request(app).post(`${baseUrl}/create`).send({
-        _id: userCompany._id.toString(),
+        _id: userCompany.id,
         profile_type: "company",
         profile_data: {
           legal_company_name: "Another Company",
@@ -153,7 +155,7 @@ describe("Profile Routes - Integration", () => {
 
     it("should create CONSULTANT profile successfully (201)", async () => {
       const res = await request(app).post(`${baseUrl}/create`).send({
-        _id: userConsultant._id.toString(),
+        _id: userConsultant.id,
         profile_type: "consultant",
         profile_data: {
           consultant_name: "John Consultant",
@@ -174,10 +176,12 @@ describe("Profile Routes - Integration", () => {
       expect(res.body.profile_id).toBeDefined();
       expect(res.body.message).toBe("consultant profile created successfully.");
 
-      const updatedUser = await User.findById(userConsultant._id);
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: userConsultant.id },
+      });
       expect(updatedUser.account_created).toBe(true);
       expect(updatedUser.profile_type).toBe("consultant");
-      expect(updatedUser.profile).toBeDefined();
+      expect(updatedUser.profileId).toBeDefined();
     });
   });
 
@@ -268,8 +272,10 @@ describe("Profile Routes - Integration", () => {
     });
 
     it("should update COMPANY profile successfully (200)", async () => {
-      const u = await User.findById(userCompany._id);
-      const profileId = u.profile.toString();
+      const u = await prisma.user.findUnique({
+        where: { id: userCompany.id },
+      });
+      const profileId = u.profileId;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -287,8 +293,10 @@ describe("Profile Routes - Integration", () => {
     });
 
     it("should update CONSULTANT profile successfully (200)", async () => {
-      const u = await User.findById(userConsultant._id);
-      const profileId = u.profile.toString();
+      const u = await prisma.user.findUnique({
+        where: { id: userConsultant.id },
+      });
+      const profileId = u.profileId;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -327,13 +335,13 @@ describe("Profile Routes - Integration", () => {
 
     it("should return user profile successfully (200)", async () => {
       const res = await request(app).get(
-        `${baseUrl}/user-profile/${userCompany._id.toString()}`
+        `${baseUrl}/user-profile/${userCompany.id}`
       );
 
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.user).toBeDefined();
-      expect(res.body.user._id).toBe(userCompany._id.toString());
+      expect(res.body.user._id).toBe(userCompany.id);
       expect(res.body.user.profile_type).toBe("company");
       expect(res.body.user.profile).toBeDefined(); // populated object
     });
@@ -342,8 +350,10 @@ describe("Profile Routes - Integration", () => {
   describe("PUT /update-profile - Authorization Tests", () => {
     it("should return 403 when user tries to update another user's profile", async () => {
       // UserCompany tries to update UserConsultant's profile
-      const consultantUser = await User.findById(userConsultant._id);
-      const consultantProfileId = consultantUser.profile.toString();
+      const consultantUser = await prisma.user.findUnique({
+        where: { id: userConsultant.id },
+      });
+      const consultantProfileId = consultantUser.profileId;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -360,8 +370,10 @@ describe("Profile Routes - Integration", () => {
     });
 
     it("should allow user to update their own company profile", async () => {
-      const companyUser = await User.findById(userCompany._id);
-      const companyProfileId = companyUser.profile.toString();
+      const companyUser = await prisma.user.findUnique({
+        where: { id: userCompany.id },
+      });
+      const companyProfileId = companyUser.profileId;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -378,8 +390,10 @@ describe("Profile Routes - Integration", () => {
     });
 
     it("should allow user to update their own consultant profile", async () => {
-      const consultantUser = await User.findById(userConsultant._id);
-      const consultantProfileId = consultantUser.profile.toString();
+      const consultantUser = await prisma.user.findUnique({
+        where: { id: userConsultant.id },
+      });
+      const consultantProfileId = consultantUser.profileId;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)

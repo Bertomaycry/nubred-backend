@@ -1,9 +1,13 @@
 /* eslint-disable no-undef */
 
-jest.mock("../../src/models/user.model.js", () => ({
+const mockPrismaUser = {
+  findUnique: jest.fn(),
+};
+
+jest.mock("../../src/lib/prisma.js", () => ({
   __esModule: true,
   default: {
-    findById: jest.fn(),
+    user: mockPrismaUser,
   },
 }));
 
@@ -12,7 +16,6 @@ jest.mock("jsonwebtoken", () => ({
 }));
 
 const jwt = require("jsonwebtoken");
-const User = jest.requireMock("../../src/models/user.model.js").default;
 const { jwtVerify } = require("../../src/middlewares/auth.middleware.js");
 
 describe("auth.middleware.js - unit tests", () => {
@@ -95,13 +98,11 @@ describe("auth.middleware.js - unit tests", () => {
   });
 
   test("jwtVerify: valid token and user found -> calls next", async () => {
-    const mockUser = { _id: "user123", email: "test@example.com" };
+    const mockUser = { id: "user123", email: "test@example.com" };
     const decoded = { id: "user123" };
 
     jwt.verify.mockReturnValue(decoded);
-    User.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue(mockUser),
-    });
+    mockPrismaUser.findUnique.mockResolvedValue(mockUser);
 
     const req = makeReq({ authorization: "Bearer valid-token" });
     const res = makeRes();
@@ -113,7 +114,34 @@ describe("auth.middleware.js - unit tests", () => {
       "valid-token",
       process.env.ACCESS_TOKEN_SECRET_KEY
     );
-    expect(User.findById).toHaveBeenCalledWith("user123");
+    expect(mockPrismaUser.findUnique).toHaveBeenCalledWith({
+      where: { id: "user123" },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
+        profileId: true,
+        profile_type: true,
+        account_created: true,
+        is_onboarded: true,
+        is_account_created_skipped: true,
+        ban_is_banned: true,
+        ban_type: true,
+        ban_reason: true,
+        ban_period: true,
+        is_unregistered: true,
+        unregister_requested: true,
+        unregister_scheduled_at: true,
+        role: true,
+        supabaseUserId: true,
+        accessToken: true,
+        refreshToken: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
     expect(req.user).toEqual(mockUser);
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
@@ -123,9 +151,7 @@ describe("auth.middleware.js - unit tests", () => {
     const decoded = { id: "user123" };
 
     jwt.verify.mockReturnValue(decoded);
-    User.findById.mockReturnValue({
-      select: jest.fn().mockResolvedValue(null),
-    });
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     const req = makeReq({ authorization: "Bearer valid-token" });
     const res = makeRes();
@@ -137,7 +163,34 @@ describe("auth.middleware.js - unit tests", () => {
       "valid-token",
       process.env.ACCESS_TOKEN_SECRET_KEY
     );
-    expect(User.findById).toHaveBeenCalledWith("user123");
+    expect(mockPrismaUser.findUnique).toHaveBeenCalledWith({
+      where: { id: "user123" },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
+        profileId: true,
+        profile_type: true,
+        account_created: true,
+        is_onboarded: true,
+        is_account_created_skipped: true,
+        ban_is_banned: true,
+        ban_type: true,
+        ban_reason: true,
+        ban_period: true,
+        is_unregistered: true,
+        unregister_requested: true,
+        unregister_scheduled_at: true,
+        role: true,
+        supabaseUserId: true,
+        accessToken: true,
+        refreshToken: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({
       success: false,
@@ -169,4 +222,3 @@ describe("auth.middleware.js - unit tests", () => {
     expect(next).not.toHaveBeenCalled();
   });
 });
-

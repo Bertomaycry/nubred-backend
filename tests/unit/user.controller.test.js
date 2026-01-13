@@ -3,14 +3,7 @@ jest.mock("../../src/utils/asyncHandler.js", () => ({
   asyncHandler: (fn) => fn,
 }));
 
-// 2) Mock bcrypt (keep name prefixed with "mock" to avoid out-of-scope restriction)
-const mockBcryptCompare = jest.fn();
-jest.mock("bcrypt", () => ({
-  __esModule: true,
-  default: { compare: (...args) => mockBcryptCompare(...args) },
-}));
-
-// 3) Mock Supabase client (controller creates `supabase` at import time)
+// 2) Mock Supabase client (controller creates `supabase` at import time)
 const mockSupabaseGetUser = jest.fn();
 jest.mock("../../src/utils/supabase.js", () => ({
   __esModule: true,
@@ -19,19 +12,35 @@ jest.mock("../../src/utils/supabase.js", () => ({
   }),
 }));
 
-// 4) Mock User model methods used in controller
-const mockUserModel = {
-  findOne: jest.fn(),
-  findById: jest.fn(),
-  find: jest.fn(),
+// 3) Mock auth utilities (bcrypt and password utilities)
+const mockHashPassword = jest.fn();
+const mockComparePassword = jest.fn();
+const mockGenerateAccessToken = jest.fn();
+const mockGenerateRefreshToken = jest.fn();
+
+jest.mock("../../src/utils/auth.utils.js", () => ({
+  hashPassword: (...args) => mockHashPassword(...args),
+  comparePassword: (...args) => mockComparePassword(...args),
+  generateAccessToken: (...args) => mockGenerateAccessToken(...args),
+  generateRefreshToken: (...args) => mockGenerateRefreshToken(...args),
+}));
+
+// 4) Mock Prisma client methods used in controller
+const mockPrismaUser = {
+  findUnique: jest.fn(),
+  findFirst: jest.fn(),
+  findMany: jest.fn(),
   create: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndDelete: jest.fn(),
+  update: jest.fn(),
+  updateMany: jest.fn(),
+  delete: jest.fn(),
 };
 
-jest.mock("../../src/models/user.model.js", () => ({
+jest.mock("../../src/lib/prisma.js", () => ({
   __esModule: true,
-  default: mockUserModel,
+  default: {
+    user: mockPrismaUser,
+  },
 }));
 
 // NOW import controller after mocks
@@ -62,7 +71,7 @@ describe("user.controller.js - full unit coverage", () => {
     };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue({
+    mockPrismaUser.findFirst.mockResolvedValue({
       email: "same@example.com",
       phoneNumber: "+999",
     });
@@ -90,7 +99,7 @@ describe("user.controller.js - full unit coverage", () => {
     };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue({
+    mockPrismaUser.findFirst.mockResolvedValue({
       email: "other@example.com",
       phoneNumber: "+111",
     });
@@ -115,9 +124,10 @@ describe("user.controller.js - full unit coverage", () => {
     };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue(null);
-    mockUserModel.create.mockResolvedValue({
-      _id: "u1",
+    mockPrismaUser.findFirst.mockResolvedValue(null);
+    mockHashPassword.mockResolvedValue("hashedpass");
+    mockPrismaUser.create.mockResolvedValue({
+      id: "u1",
       firstName: "John",
       lastName: "Doe",
       email: "john@example.com",
@@ -142,7 +152,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "x@y.com", phoneNumber: "+1" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockRejectedValue({ message: undefined });
+    mockPrismaUser.findFirst.mockRejectedValue({ message: undefined });
 
     await controller.register(req, res);
 
@@ -156,7 +166,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = {};
     const res = makeRes();
 
-    mockUserModel.find.mockResolvedValue([{ _id: "u1" }]);
+    mockPrismaUser.findMany.mockResolvedValue([{ id: "u1" }]);
 
     await controller.getUsers(req, res);
 
@@ -170,7 +180,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = {};
     const res = makeRes();
 
-    mockUserModel.find.mockRejectedValue(new Error("DB fail"));
+    mockPrismaUser.findMany.mockRejectedValue(new Error("DB fail"));
 
     await controller.getUsers(req, res);
 
@@ -184,29 +194,25 @@ describe("user.controller.js - full unit coverage", () => {
     const res = makeRes();
 
     const baseUser = {
-      _id: "u-single-1",
+      id: "u-single-1",
       firstName: "Single",
       lastName: "User",
       email: "single@a.com",
       phoneNumber: "+222",
-      profile: null,
+      profileId: null,
       profile_type: null,
       is_unregistered: false,
       account_created: false,
       is_onboarded: false,
       is_account_created_skipped: false,
-      ban: { is_banned: false },
+      ban_is_banned: false,
     };
 
-    mockUserModel.findById.mockResolvedValueOnce(baseUser);
-
-    const tokenUser = {
-      ...baseUser,
-      generateAccessToken: () => "ACCESS_TOKEN_SINGLE",
-      generateRefreshToken: () => "REFRESH_TOKEN_SINGLE",
-      save: jest.fn().mockResolvedValue(true),
-    };
-    mockUserModel.findById.mockResolvedValueOnce(tokenUser);
+    mockPrismaUser.findUnique.mockResolvedValueOnce(baseUser); // First call in getSingleUser
+    mockPrismaUser.findUnique.mockResolvedValueOnce(baseUser); // Second call in generateTokens
+    mockGenerateAccessToken.mockReturnValue("ACCESS_TOKEN_SINGLE");
+    mockGenerateRefreshToken.mockReturnValue("REFRESH_TOKEN_SINGLE");
+    mockPrismaUser.update.mockResolvedValue(baseUser);
 
     await controller.getSingleUser(req, res);
 
@@ -224,16 +230,14 @@ describe("user.controller.js - full unit coverage", () => {
       })
     );
 
-    expect(tokenUser.save).toHaveBeenCalledWith(
-      expect.objectContaining({ validateBeforeSave: false })
-    );
+    expect(mockPrismaUser.update).toHaveBeenCalled();
   });
 
   test("getSingleUser: user NOT found -> returns 200 with success:false (missing else branch)", async () => {
     const req = { params: { _id: "x" } };
     const res = makeRes();
 
-    mockUserModel.findById.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     await controller.getSingleUser(req, res);
 
@@ -247,7 +251,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "x" } };
     const res = makeRes();
 
-    mockUserModel.findById.mockRejectedValue(new Error("boom"));
+    mockPrismaUser.findUnique.mockRejectedValue(new Error("boom"));
 
     await controller.getSingleUser(req, res);
 
@@ -272,12 +276,12 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "a@a.com", password: "bad" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue({
-      _id: "u1",
+    mockPrismaUser.findUnique.mockResolvedValue({
+      id: "u1",
       email: "a@a.com",
       password: "hashed",
     });
-    mockBcryptCompare.mockResolvedValue(false);
+    mockComparePassword.mockResolvedValue(false);
 
     await controller.login(req, res);
 
@@ -289,7 +293,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "a@a.com", password: "x" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockRejectedValue(new Error("db crash"));
+    mockPrismaUser.findUnique.mockRejectedValue(new Error("db crash"));
 
     await controller.login(req, res);
 
@@ -301,7 +305,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "nouser@a.com", password: "pass" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     await controller.login(req, res);
 
@@ -318,32 +322,27 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "john@a.com", password: "Password123!" } };
     const res = makeRes();
 
-    const userFromFindOne = {
-      _id: "u-login-1",
+    const userFromFindUnique = {
+      id: "u-login-1",
       firstName: "John",
       lastName: "Doe",
       email: "john@a.com",
       phoneNumber: "+111",
       password: "hashed",
-      profile: null,
+      profileId: null,
       profile_type: null,
       is_unregistered: false,
       account_created: false,
       is_onboarded: false,
       is_account_created_skipped: false,
-      ban: { is_banned: false },
+      ban_is_banned: false,
     };
 
-    const userFromFindById = {
-      ...userFromFindOne,
-      generateAccessToken: () => "ACCESS_TOKEN",
-      generateRefreshToken: () => "REFRESH_TOKEN",
-      save: jest.fn().mockResolvedValue(true),
-    };
-
-    mockUserModel.findOne.mockResolvedValue(userFromFindOne);
-    mockBcryptCompare.mockResolvedValue(true);
-    mockUserModel.findById.mockResolvedValue(userFromFindById);
+    mockPrismaUser.findUnique.mockResolvedValue(userFromFindUnique);
+    mockComparePassword.mockResolvedValue(true);
+    mockGenerateAccessToken.mockReturnValue("ACCESS_TOKEN");
+    mockGenerateRefreshToken.mockReturnValue("REFRESH_TOKEN");
+    mockPrismaUser.update.mockResolvedValue(userFromFindUnique);
 
     await controller.login(req, res);
 
@@ -360,10 +359,7 @@ describe("user.controller.js - full unit coverage", () => {
       })
     );
 
-    // generateTokens should store refresh token and save
-    expect(userFromFindById.save).toHaveBeenCalledWith(
-      expect.objectContaining({ validateBeforeSave: false })
-    );
+    expect(mockPrismaUser.update).toHaveBeenCalled();
   });
 
   // ---------------- adminLogin ----------------
@@ -380,7 +376,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "x@y.com", password: "p" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     await controller.adminLogin(req, res);
 
@@ -391,7 +387,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "x@y.com", password: "p" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue({ role: "user" });
+    mockPrismaUser.findUnique.mockResolvedValue({ role: "user" });
 
     await controller.adminLogin(req, res);
 
@@ -402,16 +398,13 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { email: "x@y.com", password: "p" } };
     const res = makeRes();
 
-    mockUserModel.findOne.mockResolvedValue({
-      _id: "u1",
+    mockPrismaUser.findUnique.mockResolvedValue({
+      id: "u1",
       role: "admin",
       password: "hashed",
       email: "x@y.com",
-      generateAccessToken: () => "AT",
-      generateRefreshToken: () => "RT",
-      save: jest.fn(),
     });
-    mockBcryptCompare.mockResolvedValue(false);
+    mockComparePassword.mockResolvedValue(false);
 
     await controller.adminLogin(req, res);
 
@@ -423,20 +416,17 @@ describe("user.controller.js - full unit coverage", () => {
     const res = makeRes();
 
     const adminUser = {
-      _id: "u1",
+      id: "u1",
       role: "admin",
       password: "hashed",
       email: "admin@y.com",
-      generateAccessToken: () => "AT",
-      generateRefreshToken: () => "RT",
-      save: jest.fn().mockResolvedValue(true),
     };
 
-    mockUserModel.findOne.mockResolvedValue(adminUser);
-    mockBcryptCompare.mockResolvedValue(true);
-
-    // generateTokens uses User.findById internally
-    mockUserModel.findById.mockResolvedValue(adminUser);
+    mockPrismaUser.findUnique.mockResolvedValue(adminUser);
+    mockComparePassword.mockResolvedValue(true);
+    mockGenerateAccessToken.mockReturnValue("AT");
+    mockGenerateRefreshToken.mockReturnValue("RT");
+    mockPrismaUser.update.mockResolvedValue(adminUser);
 
     await controller.adminLogin(req, res);
 
@@ -446,10 +436,10 @@ describe("user.controller.js - full unit coverage", () => {
 
   // ---------------- logout ----------------
   test("logout: success -> 200", async () => {
-    const req = { user: { _id: "u1" } };
+    const req = { user: { id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue(true);
+    mockPrismaUser.update.mockResolvedValue(true);
 
     await controller.logout(req, res);
 
@@ -458,10 +448,10 @@ describe("user.controller.js - full unit coverage", () => {
   });
 
   test("logout: catch -> 500", async () => {
-    const req = { user: { _id: "u1" } };
+    const req = { user: { id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockRejectedValue(new Error("fail"));
+    mockPrismaUser.update.mockRejectedValue(new Error("fail"));
 
     await controller.logout(req, res);
 
@@ -496,21 +486,18 @@ describe("user.controller.js - full unit coverage", () => {
     const res = makeRes();
 
     const existing = {
-      _id: "u1",
+      id: "u1",
       firstName: "Ex",
       lastName: "User",
       email: "ex@a.com",
       supabaseUserId: "sb1",
-      generateAccessToken: () => "AT",
-      generateRefreshToken: () => "RT",
-      save: jest.fn().mockResolvedValue(true),
-      profile: null,
+      profileId: null,
       profile_type: null,
       account_created: false,
       is_unregistered: false,
       is_onboarded: false,
       is_account_created_skipped: false,
-      ban: { is_banned: false },
+      ban_is_banned: false,
     };
 
     mockSupabaseGetUser.mockResolvedValue({
@@ -525,7 +512,10 @@ describe("user.controller.js - full unit coverage", () => {
       error: null,
     });
 
-    mockUserModel.findOne.mockResolvedValueOnce(existing); // findOne({supabaseUserId})
+    mockPrismaUser.findFirst.mockResolvedValueOnce(existing);
+    mockGenerateAccessToken.mockReturnValue("AT");
+    mockGenerateRefreshToken.mockReturnValue("RT");
+    mockPrismaUser.update.mockResolvedValue({ ...existing, refreshToken: "RT" });
 
     await controller.handleSocialLogin(req, res);
 
@@ -538,21 +528,18 @@ describe("user.controller.js - full unit coverage", () => {
     const res = makeRes();
 
     const existingByEmail = {
-      _id: "u2",
+      id: "u2",
       firstName: "Email",
       lastName: "User",
       email: "email@a.com",
       supabaseUserId: null,
-      generateAccessToken: () => "AT2",
-      generateRefreshToken: () => "RT2",
-      save: jest.fn().mockResolvedValue(true),
-      profile: null,
+      profileId: null,
       profile_type: null,
       account_created: false,
       is_unregistered: false,
       is_onboarded: false,
       is_account_created_skipped: false,
-      ban: { is_banned: false },
+      ban_is_banned: false,
     };
 
     mockSupabaseGetUser.mockResolvedValue({
@@ -560,21 +547,23 @@ describe("user.controller.js - full unit coverage", () => {
         user: {
           id: "sb2",
           email: "email@a.com",
-          app_metadata: {}, // provider fallback
-          user_metadata: { name: "Email User" }, // name fallback branch
+          app_metadata: {},
+          user_metadata: { name: "Email User" },
         },
       },
       error: null,
     });
 
-    mockUserModel.findOne
-      .mockResolvedValueOnce(null) // by supabaseUserId
-      .mockResolvedValueOnce(existingByEmail); // by email
+    mockPrismaUser.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(existingByEmail);
+    mockGenerateAccessToken.mockReturnValue("AT2");
+    mockGenerateRefreshToken.mockReturnValue("RT2");
+    mockPrismaUser.update.mockResolvedValue({ ...existingByEmail, supabaseUserId: "sb2" });
 
     await controller.handleSocialLogin(req, res);
 
-    expect(existingByEmail.supabaseUserId).toBe("sb2");
-    expect(existingByEmail.save).toHaveBeenCalled();
+    expect(mockPrismaUser.update).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -588,37 +577,38 @@ describe("user.controller.js - full unit coverage", () => {
           id: "sb3",
           email: "new@a.com",
           app_metadata: { provider: "google" },
-          user_metadata: {}, // forces name to use email prefix fallback
+          user_metadata: {},
         },
       },
       error: null,
     });
 
-    mockUserModel.findOne.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValueOnce(null); // First call by supabaseUserId
+    mockPrismaUser.findUnique.mockResolvedValueOnce(null); // Second call by email
 
     const created = {
-      _id: "u3",
+      id: "u3",
       firstName: "new",
       lastName: "",
       email: "new@a.com",
       supabaseUserId: "sb3",
-      generateAccessToken: () => "AT3",
-      generateRefreshToken: () => "RT3",
-      save: jest.fn().mockResolvedValue(true),
-      profile: null,
+      profileId: null,
       profile_type: null,
       account_created: false,
       is_unregistered: false,
       is_onboarded: false,
       is_account_created_skipped: false,
-      ban: { is_banned: false },
+      ban_is_banned: false,
     };
 
-    mockUserModel.create.mockResolvedValue(created);
+    mockPrismaUser.create.mockResolvedValue(created);
+    mockGenerateAccessToken.mockReturnValue("AT3");
+    mockGenerateRefreshToken.mockReturnValue("RT3");
+    mockPrismaUser.update.mockResolvedValue({ ...created, refreshToken: "RT3" });
 
     await controller.handleSocialLogin(req, res);
 
-    expect(mockUserModel.create).toHaveBeenCalled();
+    expect(mockPrismaUser.create).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -638,7 +628,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue(true);
+    mockPrismaUser.update.mockResolvedValue(true);
 
     await controller.completeOnboarding(req, res);
 
@@ -649,7 +639,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockRejectedValue(new Error("fail"));
+    mockPrismaUser.update.mockRejectedValue(new Error("fail"));
 
     await controller.completeOnboarding(req, res);
 
@@ -661,7 +651,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue(true);
+    mockPrismaUser.update.mockResolvedValue(true);
 
     await controller.accountCreationChecked(req, res);
 
@@ -672,7 +662,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockRejectedValue(new Error("fail"));
+    mockPrismaUser.update.mockRejectedValue(new Error("fail"));
 
     await controller.accountCreationChecked(req, res);
 
@@ -693,7 +683,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1", ban: { type: "temp", reason: "x" } } };
     const res = makeRes();
 
-    mockUserModel.findById.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     await controller.banUser(req, res);
 
@@ -704,12 +694,13 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1", ban: { type: "temp", reason: "x" } } };
     const res = makeRes();
 
-    const user = { ban: {}, save: jest.fn().mockResolvedValue(true) };
-    mockUserModel.findById.mockResolvedValue(user);
+    const user = { id: "u1", ban_is_banned: false };
+    mockPrismaUser.findUnique.mockResolvedValue(user);
+    mockPrismaUser.update.mockResolvedValue(user);
 
     await controller.banUser(req, res);
 
-    expect(user.save).toHaveBeenCalled();
+    expect(mockPrismaUser.update).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -726,7 +717,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findById.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     await controller.removeBan(req, res);
 
@@ -737,8 +728,9 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1" } };
     const res = makeRes();
 
-    const user = { ban: {}, save: jest.fn().mockResolvedValue(true) };
-    mockUserModel.findById.mockResolvedValue(user);
+    const user = { id: "u1", ban_is_banned: true };
+    mockPrismaUser.findUnique.mockResolvedValue(user);
+    mockPrismaUser.update.mockResolvedValue(user);
 
     await controller.removeBan(req, res);
 
@@ -758,7 +750,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1", ban: { type: "temp", reason: "x" } } };
     const res = makeRes();
 
-    mockUserModel.findById.mockResolvedValue(null);
+    mockPrismaUser.findUnique.mockResolvedValue(null);
 
     await controller.updateBan(req, res);
 
@@ -769,8 +761,9 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1", ban: { type: "temp", reason: "x" } } };
     const res = makeRes();
 
-    const user = { ban: {}, save: jest.fn().mockResolvedValue(true) };
-    mockUserModel.findById.mockResolvedValue(user);
+    const user = { id: "u1", ban_is_banned: true };
+    mockPrismaUser.findUnique.mockResolvedValue(user);
+    mockPrismaUser.update.mockResolvedValue(user);
 
     await controller.updateBan(req, res);
 
@@ -782,7 +775,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndDelete.mockResolvedValue({ _id: "u1" });
+    mockPrismaUser.delete.mockResolvedValue({ id: "u1" });
 
     await controller.deleteUser(req, res);
 
@@ -793,7 +786,9 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndDelete.mockResolvedValue(null);
+    const notFoundError = new Error("Record not found");
+    notFoundError.code = "P2025";
+    mockPrismaUser.delete.mockRejectedValue(notFoundError);
 
     await controller.deleteUser(req, res);
 
@@ -804,7 +799,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndDelete.mockRejectedValue(new Error("fail"));
+    mockPrismaUser.delete.mockRejectedValue(new Error("fail"));
 
     await controller.deleteUser(req, res);
 
@@ -816,7 +811,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue({ _id: "u1" });
+    mockPrismaUser.update.mockResolvedValue({ id: "u1" });
 
     await controller.registerAccount(req, res);
 
@@ -827,7 +822,9 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue(null);
+    const notFoundError = new Error("Record not found");
+    notFoundError.code = "P2025";
+    mockPrismaUser.update.mockRejectedValue(notFoundError);
 
     await controller.registerAccount(req, res);
 
@@ -838,7 +835,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { body: { userId: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockRejectedValue(new Error("fail"));
+    mockPrismaUser.update.mockRejectedValue(new Error("fail"));
 
     await controller.registerAccount(req, res);
 
@@ -850,7 +847,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue({ _id: "u1" });
+    mockPrismaUser.update.mockResolvedValue({ id: "u1" });
 
     await controller.unregisterUser(req, res);
 
@@ -861,7 +858,9 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue(null);
+    const notFoundError = new Error("Record not found");
+    notFoundError.code = "P2025";
+    mockPrismaUser.update.mockRejectedValue(notFoundError);
 
     await controller.unregisterUser(req, res);
 
@@ -872,7 +871,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockRejectedValue(new Error("fail"));
+    mockPrismaUser.update.mockRejectedValue(new Error("fail"));
 
     await controller.unregisterUser(req, res);
 
@@ -884,7 +883,7 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u1" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue({ _id: "u1" });
+    mockPrismaUser.update.mockResolvedValue({ id: "u1" });
 
     await controller.cancelUnregister(req, res);
 
@@ -900,7 +899,9 @@ describe("user.controller.js - full unit coverage", () => {
     const req = { params: { _id: "u404" } };
     const res = makeRes();
 
-    mockUserModel.findByIdAndUpdate.mockResolvedValue(null);
+    const notFoundError = new Error("Record not found");
+    notFoundError.code = "P2025";
+    mockPrismaUser.update.mockRejectedValue(notFoundError);
 
     await controller.cancelUnregister(req, res);
 
