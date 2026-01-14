@@ -7,13 +7,18 @@ import chatRoutes from "./routes/chat.routes.js";
 
 const app = express();
 
+// CORS configuration - must be before routes
 app.use(
   cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: ["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   })
 );
+
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
