@@ -1,5 +1,4 @@
-// Load environment variables FIRST (before any other imports)
-import "./config/env.js";
+
 
 import connectDB from "./db/index.js";
 import app from "./app.js";
