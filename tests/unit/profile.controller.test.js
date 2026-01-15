@@ -1,29 +1,24 @@
 /* eslint-disable no-undef */
-
-// Mock the prisma module BEFORE importing anything
-jest.mock("../../src/lib/prisma.js", () => ({
-  __esModule: true,
-  default: {
-    user: {
-      findUnique: jest.fn(),
-      update: jest.fn(),
-    },
-    companyProfile: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-    },
-    consultantProfile: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
-    },
-  },
-}));
-
-// import controller AFTER mocks
-import { createUserProfile, getUserProfile, updateUserProfile } from "../../src/controllers/profile.controller.js";
+import { jest } from "@jest/globals";
 import prisma from "../../src/lib/prisma.js";
+import * as controller from "../../src/controllers/profile.controller.js";
+
+const createUserProfile = controller.createUserProfile;
+const getUserProfile = controller.getUserProfile;
+const updateUserProfile = controller.updateUserProfile;
+
+// Replace prisma client tables with mock functions so controller uses them
+prisma.user = { findUnique: jest.fn(), update: jest.fn() };
+prisma.companyProfile = {
+  create: jest.fn(),
+  findUnique: jest.fn(),
+  update: jest.fn(),
+};
+prisma.consultantProfile = {
+  create: jest.fn(),
+  findUnique: jest.fn(),
+  update: jest.fn(),
+};
 
 const makeRes = () => {
   const res = {};

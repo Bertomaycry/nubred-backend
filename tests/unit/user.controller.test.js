@@ -1,29 +1,13 @@
-// 1) Make asyncHandler a passthrough so exported handlers are the real functions.
-jest.mock("../../src/utils/asyncHandler.js", () => ({
-  asyncHandler: (fn) => fn,
-}));
+import { jest } from "@jest/globals";
 
-// 2) Mock Supabase client (controller creates `supabase` at import time)
+// 1) Make asyncHandler a passthrough so exported handlers are the real functions.
 const mockSupabaseGetUser = jest.fn();
-jest.mock("../../src/utils/supabase.js", () => ({
-  __esModule: true,
-  getSupabaseClient: () => ({
-    auth: { getUser: (...args) => mockSupabaseGetUser(...args) },
-  }),
-}));
 
 // 3) Mock auth utilities (bcrypt and password utilities)
 const mockHashPassword = jest.fn();
 const mockComparePassword = jest.fn();
 const mockGenerateAccessToken = jest.fn();
 const mockGenerateRefreshToken = jest.fn();
-
-jest.mock("../../src/utils/auth.utils.js", () => ({
-  hashPassword: (...args) => mockHashPassword(...args),
-  comparePassword: (...args) => mockComparePassword(...args),
-  generateAccessToken: (...args) => mockGenerateAccessToken(...args),
-  generateRefreshToken: (...args) => mockGenerateRefreshToken(...args),
-}));
 
 // 4) Mock Prisma client methods used in controller
 const mockPrismaUser = {
@@ -36,15 +20,67 @@ const mockPrismaUser = {
   delete: jest.fn(),
 };
 
-jest.mock("../../src/lib/prisma.js", () => ({
-  __esModule: true,
-  default: {
-    user: mockPrismaUser,
-  },
-}));
+let controller;
 
-// NOW import controller after mocks
-const controller = require("../../src/controllers/user.controller.js");
+beforeAll(async () => {
+  jest.resetModules();
+  // Mock auth.utils so hash/compare and token generation delegate to our test mocks
+  await jest.unstable_mockModule("../../src/utils/auth.utils.js", () => ({
+    hashPassword: (...args) => mockHashPassword(...args),
+    comparePassword: (...args) => mockComparePassword(...args),
+    generateAccessToken: (...args) => mockGenerateAccessToken(...args),
+    generateRefreshToken: (...args) => mockGenerateRefreshToken(...args),
+  }));
+
+  // Register unstable mocks after resetModules and before importing controller
+  await jest.unstable_mockModule("../../src/utils/asyncHandler.js", () => ({
+    asyncHandler: (fn) => fn,
+  }));
+
+  await jest.unstable_mockModule("../../src/utils/supabase.js", () => ({
+    __esModule: true,
+    getSupabaseClient: () => ({
+      auth: { getUser: (...args) => mockSupabaseGetUser(...args) },
+    }),
+  }));
+
+  // Instead of mocking auth.utils module, spy on jsonwebtoken.sign so
+  // the real `generateAccessToken`/`generateRefreshToken` will call our
+  // mocked sign implementation which delegates to the test mocks.
+  const jwtModule = await import("jsonwebtoken");
+  const jwtDefault = jwtModule.default ?? jwtModule;
+  jest
+    .spyOn(jwtDefault, "sign")
+    .mockImplementation((payload, secret, options) => {
+      if (options && options.expiresIn === "20m") {
+        return mockGenerateAccessToken();
+      }
+      if (options && options.expiresIn === "1d") {
+        return mockGenerateRefreshToken();
+      }
+      return "MOCK_TOKEN";
+    });
+
+  await jest.unstable_mockModule("../../src/lib/prisma.js", () => ({
+    __esModule: true,
+    default: {
+      user: mockPrismaUser,
+    },
+  }));
+
+  controller = await import("../../src/controllers/user.controller.js");
+  // Ensure the real prisma client used by controller has its `user` table
+  // replaced by our mocks to avoid real DB calls (and malformed ObjectId errors)
+  const prisma = (await import("../../src/lib/prisma.js")).default;
+  prisma.user = mockPrismaUser;
+  // Inject supabase client into controller to ensure auth.getUser calls use our mock
+  if (controller && controller.__setSupabaseForTests) {
+    controller.__setSupabaseForTests({ auth: { getUser: (...args) => mockSupabaseGetUser(...args) } });
+  }
+  if (controller && controller.__setComparePasswordForTests) {
+    controller.__setComparePasswordForTests((...args) => mockComparePassword(...args));
+  }
+});
 
 const makeRes = () => {
   const res = {};
@@ -266,6 +302,14 @@ describe("user.controller.js - full unit coverage", () => {
 
     await controller.login(req, res);
 
+    // debug: inspect mock calls after login
+    // eslint-disable-next-line no-console
+    console.log("DEBUG post-login mocks:", {
+      comparePasswordCalls: mockComparePassword.mock.calls.length,
+      comparePasswordResults: mockComparePassword.mock.results.map((r) => r.type),
+      findUniqueCalls: mockPrismaUser.findUnique.mock.calls.length,
+    });
+
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json.mock.calls[0][0].message).toBe(
       "Please provide email and password"
@@ -343,6 +387,14 @@ describe("user.controller.js - full unit coverage", () => {
     mockGenerateAccessToken.mockReturnValue("ACCESS_TOKEN");
     mockGenerateRefreshToken.mockReturnValue("REFRESH_TOKEN");
     mockPrismaUser.update.mockResolvedValue(userFromFindUnique);
+
+    // debug: verify mocks are set
+    // eslint-disable-next-line no-console
+    console.log("DEBUG login mocks:", {
+      findUniqueCalls: mockPrismaUser.findUnique.mock.calls.length,
+      comparePasswordMocked: typeof mockComparePassword === "function",
+      comparePasswordCalls: mockComparePassword.mock.calls.length,
+    });
 
     await controller.login(req, res);
 

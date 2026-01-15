@@ -1,20 +1,22 @@
 /* eslint-disable no-undef */
+import { jest } from "@jest/globals";
 
-const mockCreateClient = jest.fn();
-jest.mock("@supabase/supabase-js", () => ({
-  createClient: (...args) => mockCreateClient(...args),
-}));
+let mockCreateClient;
+let supabaseModule;
 
 describe("supabase.js - unit tests", () => {
   let originalEnv;
-  let supabaseModule;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     originalEnv = { ...process.env };
-    // Clear module cache and re-import
+    // Clear module cache and re-import the module so the unstable mock is applied
     jest.resetModules();
-    supabaseModule = require("../../src/utils/supabase.js");
+    // create a fresh mock and inject it into the supabase util before using
+    mockCreateClient = jest.fn();
+    supabaseModule = await import("../../src/utils/supabase.js");
+    // inject the test createClient implementation
+    supabaseModule.__setCreateClientForTests((...args) => mockCreateClient(...args));
   });
 
   afterEach(() => {
