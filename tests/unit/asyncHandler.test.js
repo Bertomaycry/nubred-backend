@@ -1,6 +1,8 @@
 /* eslint-disable no-undef */
 
 import { asyncHandler } from "../../src/utils/asyncHandler.js";
+import { jest } from "@jest/globals";
+
 
 describe("asyncHandler - unit tests", () => {
   const makeReq = () => ({});

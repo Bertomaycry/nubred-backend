@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import app from "../../src/app.js";
 import prisma from "../../src/lib/prisma.js";
 import { hashPassword } from "../../src/utils/auth.utils.js";
+import { jest } from "@jest/globals";
+
 
 jest.setTimeout(30000); // 30s to avoid timeouts on DB operations
 
