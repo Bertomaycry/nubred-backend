@@ -1,22 +1,15 @@
 /* eslint-disable no-undef */
+import { jest } from "@jest/globals";
+import jwt from "jsonwebtoken";
+import prisma from "../../src/lib/prisma.js";
+import { jwtVerify } from "../../src/middlewares/auth.middleware.js";
 
 const mockPrismaUser = {
   findUnique: jest.fn(),
 };
 
-jest.mock("../../src/lib/prisma.js", () => ({
-  __esModule: true,
-  default: {
-    user: mockPrismaUser,
-  },
-}));
-
-jest.mock("jsonwebtoken", () => ({
-  verify: jest.fn(),
-}));
-
-const jwt = require("jsonwebtoken");
-const { jwtVerify } = require("../../src/middlewares/auth.middleware.js");
+// Replace prisma client tables with mock objects so controller uses them
+prisma.user = mockPrismaUser;
 
 describe("auth.middleware.js - unit tests", () => {
   const makeReq = (headers = {}) => ({
@@ -100,8 +93,7 @@ describe("auth.middleware.js - unit tests", () => {
   test("jwtVerify: valid token and user found -> calls next", async () => {
     const mockUser = { id: "user123", email: "test@example.com" };
     const decoded = { id: "user123" };
-
-    jwt.verify.mockReturnValue(decoded);
+    jest.spyOn(jwt, "verify").mockReturnValue(decoded);
     mockPrismaUser.findUnique.mockResolvedValue(mockUser);
 
     const req = makeReq({ authorization: "Bearer valid-token" });
@@ -149,8 +141,7 @@ describe("auth.middleware.js - unit tests", () => {
 
   test("jwtVerify: valid token but user not found -> 401", async () => {
     const decoded = { id: "user123" };
-
-    jwt.verify.mockReturnValue(decoded);
+    jest.spyOn(jwt, "verify").mockReturnValue(decoded);
     mockPrismaUser.findUnique.mockResolvedValue(null);
 
     const req = makeReq({ authorization: "Bearer valid-token" });
@@ -200,7 +191,7 @@ describe("auth.middleware.js - unit tests", () => {
   });
 
   test("jwtVerify: invalid token -> 401", async () => {
-    jwt.verify.mockImplementation(() => {
+    jest.spyOn(jwt, "verify").mockImplementation(() => {
       throw new Error("Invalid token");
     });
 

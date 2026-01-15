@@ -1,6 +1,16 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
+// Test hook: allow overriding jwt.sign in tests
+let jwtSign = jwt.sign;
+export function __setJwtSignForTests(fn) {
+  jwtSign = fn;
+}
+
+export function __resetJwtSignForTests() {
+  jwtSign = jwt.sign;
+}
+
 /**
  * Hash a password using bcrypt
  * @param {string} password - Plain text password
@@ -27,7 +37,7 @@ export const comparePassword = async (password, hashedPassword) => {
  * @returns {string} - JWT access token
  */
 export const generateAccessToken = (userId, email) => {
-  return jwt.sign(
+  return jwtSign(
     { id: userId, email: email },
     process.env.ACCESS_TOKEN_SECRET_KEY,
     {
@@ -42,7 +52,7 @@ export const generateAccessToken = (userId, email) => {
  * @returns {string} - JWT refresh token
  */
 export const generateRefreshToken = (userId) => {
-  return jwt.sign(
+  return jwtSign(
     { id: userId },
     process.env.REFRESH_TOKEN_SECRET_KEY,
     {

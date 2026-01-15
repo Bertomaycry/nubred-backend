@@ -3,12 +3,26 @@ import prisma from "../lib/prisma.js";
 import { getSupabaseClient } from "../utils/supabase.js";
 import {
   hashPassword,
-  comparePassword,
+  comparePassword as _comparePassword,
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/auth.utils.js";
 
-const supabase = getSupabaseClient();
+// Allow tests to override comparePassword implementation
+let comparePassword = _comparePassword;
+export function __setComparePasswordForTests(fn) {
+  comparePassword = fn;
+}
+export function __resetComparePasswordForTests() {
+  comparePassword = _comparePassword;
+}
+
+let supabase = null;
+
+// Test helper: allow tests to inject a supabase client
+export function __setSupabaseForTests(client) {
+  supabase = client;
+}
 
 export const register = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, phoneNumber, password } = req.body;
@@ -168,6 +182,7 @@ export const generateTokens = async (userId) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  console.log("DEBUG login called", { emailPresent: !!email, passwordPresent: !!password });
 
   if (!email && !password) {
     return res.status(400).json({
@@ -181,6 +196,8 @@ export const login = asyncHandler(async (req, res) => {
       where: { email },
     });
 
+    console.log("DEBUG login found user", { user: !!user });
+
     if (!user) {
       return res.status(400).json({
         success: false,
@@ -189,6 +206,8 @@ export const login = asyncHandler(async (req, res) => {
     }
 
     const isPasswordMatched = await comparePassword(password, user.password);
+
+    console.log("DEBUG compare result", { isPasswordMatched });
 
     if (!isPasswordMatched) {
       return res.status(400).json({
@@ -312,10 +331,11 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
 
   try {
     // Verify Supabase token and get user using SERVICE_ROLE_KEY
+    const supabaseClient = supabase || getSupabaseClient();
     const {
       data: { user: supabaseUser },
       error,
-    } = await supabase.auth.getUser(supabaseAccessToken);
+    } = await supabaseClient.auth.getUser(supabaseAccessToken);
 
     if (error || !supabaseUser) {
       return res.status(401).json({

@@ -872,21 +872,6 @@ npm test -- --coverage
 # Run in watch mode
 npm test -- --watch
 ```
-
----
-
-## Environment Setup for Tests
-
-Required environment variables:
-```env
-ACCESS_TOKEN_SECRET_KEY=tekkdev_12_access
-REFRESH_TOKEN_SECRET_KEY=tekkdev_12_refresh
-DATABASE_URL=mongodb://127.0.0.1:27017/nubred-test
-MONGODB_URI=mongodb://127.0.0.1:27017/nubred-test
-```
-
-Jest timeout: 30000ms (30 seconds)
-
 ---
 ---
 

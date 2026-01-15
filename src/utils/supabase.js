@@ -1,6 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient as _createClient } from "@supabase/supabase-js";
 
 let supabaseClient = null;
+let createClient = _createClient;
+
+// Test helper: allow tests to inject a createClient implementation
+export function __setCreateClientForTests(fn) {
+  createClient = fn;
+}
+
+export function __resetCreateClientForTests() {
+  createClient = _createClient;
+}
 
 export function resolveSupabaseConfig() {
   const supabaseUrl = process.env.SUPABASE_URL
