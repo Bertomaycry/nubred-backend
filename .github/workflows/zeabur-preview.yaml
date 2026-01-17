@@ -27,11 +27,10 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      # The 'lint' and 'build:prod' scripts defined in the original workflow do not exist in 'package.json'.
-      # They have been replaced with a 'test' step to validate the code.
+      # 'npx' is used here to ensure the 'jest' executable from node_modules is found and used.
       - name: Run Tests
         # This command is adapted from the 'test' script in 'package.json' to run on an Ubuntu environment.
-        run: NODE_OPTIONS=--experimental-vm-modules jest
+        run: NODE_OPTIONS=--experimental-vm-modules npx jest
 
   CD-Push-to-Deploy-Branch:
     name: Push to Zeabur Deploy Branch
