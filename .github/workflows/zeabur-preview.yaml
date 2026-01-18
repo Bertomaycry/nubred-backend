@@ -12,6 +12,7 @@ jobs:
   # --- CI JOB: Quality & Build Check ---
   CI-Validation-Preview:
     runs-on: ubuntu-latest
+    environment: Preview
 
     env:
       DATABASE_URL: ${{ secrets.MONGODB_URL }}
