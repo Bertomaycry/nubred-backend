@@ -35,7 +35,17 @@ jobs:
       # The previous test step has been replaced with a direct application start, as requested.
       - name: Start Application
         # This command executes the 'start' script from package.json, typically for running the application.
-        run: npm start
+        run: |
+          npm start &
+          SERVER_PID=$!
+
+          echo "⏳ Waiting for server..."
+          sleep 5
+
+          curl -f http://localhost:5000 || exit 1
+
+          echo "✅ Server is healthy, stopping"
+          kill $SERVER_PID
 
   CD-Push-to-Deploy-Branch:
     name: Push to Zeabur Deploy Branch
