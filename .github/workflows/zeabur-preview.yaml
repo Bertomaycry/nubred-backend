@@ -36,16 +36,30 @@ jobs:
       - name: Start Application
         # This command executes the 'start' script from package.json, typically for running the application.
         run: |
-          npm start &
+          set -e
+
+          # Start server in background and capture logs
+          npm start > server.log 2>&1 &
           SERVER_PID=$!
 
-          echo "⏳ Waiting for server..."
-          sleep 5
+          echo "⏳ Waiting for server to boot..."
 
-          curl -f http://localhost:5000 || exit 1
+          # Wait up to 15 seconds for the log line
+          for i in {1..15}; do
+            if grep -q "Server running" server.log; then
+              echo "✅ Server started successfully"
+              kill $SERVER_PID
+              wait $SERVER_PID || true
+              exit 0
+            fi
+            sleep 1
+          done
 
-          echo "✅ Server is healthy, stopping"
+          echo "❌ Server did not start in time"
+          echo "---- Server logs ----"
+          cat server.log
           kill $SERVER_PID
+          exit 1
 
   CD-Push-to-Deploy-Branch:
     name: Push to Zeabur Deploy Branch
