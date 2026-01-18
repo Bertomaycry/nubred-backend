@@ -12,6 +12,10 @@ jobs:
   # --- CI JOB: Quality & Build Check ---
   CI-Validation-Preview:
     runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: ${{ secrets.MONGODB_URL }}
+      
     steps:
       - uses: actions/checkout@v4
       
