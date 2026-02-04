@@ -47,7 +47,7 @@ jobs:
 
           # Wait up to 15 seconds for the log line
           for i in {1..15}; do
-            if grep -q "Server running" server.log; then
+            if grep -q "Server is running" server.log; then
               echo "✅ Server started successfully"
               kill $SERVER_PID
               wait $SERVER_PID || true
