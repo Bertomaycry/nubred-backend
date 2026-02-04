@@ -30,8 +30,8 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
+      # - name: Generate Prisma Client
+      #   run: npx prisma generate
 
       # The previous test step has been replaced with a direct application start, as requested.
       - name: Start Application
