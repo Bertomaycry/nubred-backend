@@ -20,6 +20,14 @@ prisma.consultantProfile = {
   update: jest.fn(),
 };
 
+prisma.$transaction = jest.fn((callback) =>
+  callback({
+    companyProfile: prisma.companyProfile,
+    consultantProfile: prisma.consultantProfile,
+    user: prisma.user,
+  })
+);
+
 const makeRes = () => {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
@@ -45,21 +53,46 @@ describe("profile.controller.js - unit tests", () => {
     expect(res.json).toHaveBeenCalledWith({ message: "Invalid profile type." });
   });
 
-  test("createUserProfile: profile already exists -> 400", async () => {
+  test("createUserProfile: company row already exists -> 200 idempotent link", async () => {
     const req = {
-      body: { _id: "u1", profile_type: "company", profile_data: {} },
+      body: {
+        _id: "u1",
+        profile_type: "company",
+        profile_data: {
+          legal_company_name: "X",
+          country_of_incorporation: "AE",
+          company_email: "x@x.com",
+        },
+      },
     };
     const res = makeRes();
 
-    prisma.user.findUnique.mockResolvedValue({ id: "u1", profileId: "p1" });
+    prisma.user.findUnique.mockResolvedValue({ id: "u1" });
+    prisma.companyProfile.findUnique.mockResolvedValue({
+      id: "companyProfile1",
+      userId: "u1",
+      legal_company_name: "X",
+    });
+    prisma.consultantProfile.findUnique.mockResolvedValue(null);
+    prisma.user.update.mockResolvedValue({});
 
     await createUserProfile(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      success: false,
-      message: "Profile already exists for this user.",
+    expect(prisma.companyProfile.create).not.toHaveBeenCalled();
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: {
+        account_created: true,
+        profile_type: "company",
+      },
     });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        profile_id: "companyProfile1",
+      })
+    );
   });
 
   test("createUserProfile: creates COMPANY profile -> 201", async () => {
@@ -78,12 +111,13 @@ describe("profile.controller.js - unit tests", () => {
 
     const existingUser = {
       id: "u1",
-      profileId: null,
       account_created: false,
       profile_type: null,
     };
 
     prisma.user.findUnique.mockResolvedValue(existingUser);
+    prisma.companyProfile.findUnique.mockResolvedValue(null);
+    prisma.consultantProfile.findUnique.mockResolvedValue(null);
 
     prisma.companyProfile.create.mockResolvedValue({
       id: "companyProfile1",
@@ -95,7 +129,6 @@ describe("profile.controller.js - unit tests", () => {
       ...existingUser,
       account_created: true,
       profile_type: "company",
-      profileId: "companyProfile1",
     });
 
     await createUserProfile(req, res);
@@ -111,7 +144,6 @@ describe("profile.controller.js - unit tests", () => {
       data: {
         account_created: true,
         profile_type: "company",
-        profileId: "companyProfile1",
       },
     });
 
@@ -140,12 +172,13 @@ describe("profile.controller.js - unit tests", () => {
 
     const existingUser = {
       id: "u2",
-      profileId: null,
       account_created: false,
       profile_type: null,
     };
 
     prisma.user.findUnique.mockResolvedValue(existingUser);
+    prisma.companyProfile.findUnique.mockResolvedValue(null);
+    prisma.consultantProfile.findUnique.mockResolvedValue(null);
 
     prisma.consultantProfile.create.mockResolvedValue({
       id: "consultantProfile1",
@@ -157,7 +190,6 @@ describe("profile.controller.js - unit tests", () => {
       ...existingUser,
       account_created: true,
       profile_type: "consultant",
-      profileId: "consultantProfile1",
     });
 
     await createUserProfile(req, res);
@@ -173,7 +205,6 @@ describe("profile.controller.js - unit tests", () => {
       data: {
         account_created: true,
         profile_type: "consultant",
-        profileId: "consultantProfile1",
       },
     });
 
@@ -228,7 +259,6 @@ describe("profile.controller.js - unit tests", () => {
       phoneNumber: "+1",
       account_created: true,
       profile_type: "company",
-      profileId: "p1",
       companyProfile: {
         id: "p1",
         userId: "u1",

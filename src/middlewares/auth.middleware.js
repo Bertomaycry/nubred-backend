@@ -47,7 +47,6 @@ export const jwtVerify = asyncHandler(async (req, res, next) => {
         is_account_created_skipped: true,
         is_onboarded: true,
         profile_type: true,
-        profileId: true,
         createdAt: true,
         updatedAt: true,
       },

@@ -105,6 +105,10 @@ export const getSingleUser = asyncHandler(async (req, res) => {
     const userId = req.params._id;
     const user = await prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        companyProfile: { select: { id: true } },
+        consultantProfile: { select: { id: true } },
+      },
     });
 
     if (user) {
@@ -130,7 +134,8 @@ export const getSingleUser = asyncHandler(async (req, res) => {
           phoneNumber: user.phoneNumber,
           accessToken: accessToken || null,
           refreshToken: refreshToken || null,
-          profile: user.profileId,
+          profile:
+            user.companyProfile?.id ?? user.consultantProfile?.id ?? null,
           profile_type: user.profile_type,
           is_unregistered: user.is_unregistered,
           account_created: user.account_created,
@@ -194,6 +199,10 @@ export const login = asyncHandler(async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        companyProfile: { select: { id: true } },
+        consultantProfile: { select: { id: true } },
+      },
     });
 
     console.log("DEBUG login found user", { user: !!user });
@@ -238,7 +247,8 @@ export const login = asyncHandler(async (req, res) => {
         phoneNumber: user.phoneNumber,
         accessToken: accessToken || null,
         refreshToken: refreshToken || null,
-        profile: user.profileId,
+        profile:
+          user.companyProfile?.id ?? user.consultantProfile?.id ?? null,
         profile_type: user.profile_type,
         is_unregistered: user.is_unregistered,
         account_created: user.account_created,
@@ -417,6 +427,10 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
     user = await prisma.user.update({
       where: { id: user.id },
       data: { refreshToken },
+      include: {
+        companyProfile: { select: { id: true } },
+        consultantProfile: { select: { id: true } },
+      },
     });
 
     // Build ban object for backward compatibility
@@ -440,7 +454,8 @@ export const handleSocialLogin = asyncHandler(async (req, res) => {
         provider,
         accessToken,
         refreshToken,
-        profile: user.profileId,
+        profile:
+          user.companyProfile?.id ?? user.consultantProfile?.id ?? null,
         profile_type: user.profile_type,
         account_created: user.account_created,
         is_unregistered: user.is_unregistered,
