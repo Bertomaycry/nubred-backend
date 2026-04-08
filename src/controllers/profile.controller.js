@@ -3,7 +3,9 @@ import prisma from "../lib/prisma.js";
 
 export const createUserProfile = async (req, res) => {
   try {
-    const userId = req.body._id;
+    // userId comes from the authenticated session; _id in body is accepted as
+    // a legacy fallback so existing clients keep working during rollout.
+    const userId = req.user?.id ?? req.body._id;
     const { profile_type, profile_data } = req.body;
 
     if (!["company", "consultant"].includes(profile_type)) {

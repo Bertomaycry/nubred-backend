@@ -11,18 +11,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model - Main user entity with authentication and profile management
+// User model - Main user entity with Clerk authentication and business data
 model User {
-  id             String  @id @default(uuid())
-  firstName      String
-  lastName       String?
-  email          String  @unique
-  phoneNumber    String  @unique
-  password       String
-  supabaseUserId String? @unique
-  role           String  @default("user") // enum: user, admin
-  refreshToken   String?
-  accessToken    String?
+  id          String  @id @default(uuid())
+  clerkUserId String? @unique
+  firstName   String
+  lastName    String?
+  email       String  @unique
+  phoneNumber String? @unique
+  role        String  @default("user") // enum: user, admin
 
   // Ban system - nested object
   ban_is_banned Boolean @default(false)

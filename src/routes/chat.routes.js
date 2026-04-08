@@ -1,10 +1,10 @@
 import express from "express";
 import { getAllChat, saveChatHistory } from "../controllers/chat-history.controller.js";
-import { jwtVerify } from "../middlewares/auth.middleware.js";
+import { protect } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/save-history", jwtVerify, saveChatHistory);
-router.get("/get-chat", jwtVerify, getAllChat);
+router.post("/save-history", ...protect, saveChatHistory);
+router.get("/get-chat", ...protect, getAllChat);
 
 export default router;

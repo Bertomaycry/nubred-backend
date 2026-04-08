@@ -1,72 +1,86 @@
-import { asyncHandler } from "../utils/asyncHandler.js";
-import jwt from "jsonwebtoken";
+import { requireAuth, getAuth, createClerkClient } from "@clerk/express";
 import prisma from "../lib/prisma.js";
 
-export const jwtVerify = asyncHandler(async (req, res, next) => {
-  const authHeader = req.headers.authorization;
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      success: false,
-      message: "Token not provided",
-    });
-  }
+/**
+ * Rejects unauthenticated requests using Clerk session verification.
+ * Must be used together with attachUser to populate req.user.
+ */
+export const requireClerkAuth = requireAuth();
 
-  const token = authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: "Token not provided",
-    });
-  }
-
+/**
+ * Finds the DB user by clerkUserId. If no record exists yet (race between
+ * webhook and first API call), it fetches the Clerk user profile and creates
+ * a row on the fly (fallback safety as required by the spec).
+ */
+export const attachUser = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET_KEY);
+    const { userId: clerkUserId } = getAuth(req);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded?.id },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phoneNumber: true,
-        supabaseUserId: true,
-        role: true,
-        refreshToken: true,
-        accessToken: true,
-        ban_is_banned: true,
-        ban_type: true,
-        ban_reason: true,
-        ban_period: true,
-        account_created: true,
-        is_unregistered: true,
-        unregister_requested: true,
-        unregister_scheduled_at: true,
-        is_account_created_skipped: true,
-        is_onboarded: true,
-        profile_type: true,
-        createdAt: true,
-        updatedAt: true,
+    if (!clerkUserId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized" });
+    }
+
+    let user = await prisma.user.findUnique({
+      where: { clerkUserId },
+      include: {
+        companyProfile: { select: { id: true } },
+        consultantProfile: { select: { id: true } },
       },
     });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "User not found",
-      });
+      // Fallback: webhook may not have arrived yet — fetch from Clerk and create
+      const clerkUser = await clerkClient.users.getUser(clerkUserId);
+      const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+
+      // If a user with this email already exists (legacy account), link it
+      const byEmail = email
+        ? await prisma.user.findUnique({ where: { email } })
+        : null;
+
+      if (byEmail) {
+        user = await prisma.user.update({
+          where: { id: byEmail.id },
+          data: { clerkUserId },
+          include: {
+            companyProfile: { select: { id: true } },
+            consultantProfile: { select: { id: true } },
+          },
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            clerkUserId,
+            firstName: clerkUser.firstName || "",
+            lastName: clerkUser.lastName || "",
+            email: email || `${clerkUserId}@clerk.local`,
+          },
+          include: {
+            companyProfile: { select: { id: true } },
+            consultantProfile: { select: { id: true } },
+          },
+        });
+      }
     }
 
     req.user = user;
     next();
   } catch (error) {
-    console.log(error);
-
-    return res.status(401).json({
-      success: false,
-      message: "Please login to access this resource",
-    });
+    console.error("Auth middleware error:", error);
+    return res
+      .status(401)
+      .json({ success: false, message: "Authentication failed" });
   }
-});
+};
+
+/**
+ * Convenience array — spread into any route that needs a verified DB user:
+ *   router.get("/me", ...protect, handler)
+ */
+export const protect = [requireClerkAuth, attachUser];
