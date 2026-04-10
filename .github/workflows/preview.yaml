@@ -15,8 +15,7 @@ jobs:
     environment: Preview
 
     env:
-      DATABASE_URL: ${{ secrets.MONGODB_URI }}
-      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
       
     steps:
       - uses: actions/checkout@v4
