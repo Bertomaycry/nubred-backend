@@ -1,6 +1,22 @@
 import { Webhook } from "svix";
 import prisma from "../lib/prisma.js";
 
+/**
+ * Phone from Clerk-native field or from custom signup (unsafeMetadata.phoneNumber).
+ */
+function resolveClerkPhone(data) {
+  const fromClerk = data.phone_numbers?.[0]?.phone_number;
+  const meta = data.unsafe_metadata ?? {};
+  const fromMeta =
+    typeof meta.phoneNumber === "string"
+      ? meta.phoneNumber
+      : typeof meta.phone_number === "string"
+        ? meta.phone_number
+        : "";
+  const s = String(fromClerk || fromMeta || "").trim();
+  return s || null;
+}
+
 export const handleClerkWebhook = async (req, res) => {
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -39,7 +55,9 @@ export const handleClerkWebhook = async (req, res) => {
   try {
     switch (type) {
       case "user.created": {
+        console.log("CLERK_WEBHOOK: user.created", data);
         const email = data.email_addresses?.[0]?.email_address;
+        const phoneNumber = resolveClerkPhone(data);
 
         // Link to an existing record by email if present (legacy account migration)
         const existing = email
@@ -47,24 +65,37 @@ export const handleClerkWebhook = async (req, res) => {
           : null;
 
         if (existing) {
+          const updateData = { clerkUserId: data.id };
+          if (phoneNumber) {
+            const taken = await prisma.user.findFirst({
+              where: { phoneNumber, NOT: { id: existing.id } },
+            });
+            if (!taken) updateData.phoneNumber = phoneNumber;
+          }
           await prisma.user.update({
             where: { id: existing.id },
-            data: { clerkUserId: data.id },
+            data: updateData,
           });
         } else {
-          await prisma.user.create({
-            data: {
-              clerkUserId: data.id,
-              firstName: data.first_name || "",
-              lastName: data.last_name || "",
-              email: email || `${data.id}@clerk.local`,
-            },
-          });
+          const createData = {
+            clerkUserId: data.id,
+            firstName: data.first_name || "",
+            lastName: data.last_name || "",
+            email: email || `${data.id}@clerk.local`,
+          };
+          if (phoneNumber) {
+            const taken = await prisma.user.findUnique({
+              where: { phoneNumber },
+            });
+            if (!taken) createData.phoneNumber = phoneNumber;
+          }
+          await prisma.user.create({ data: createData });
         }
         break;
       }
 
       case "user.updated": {
+        console.log("CLERK_WEBHOOK: user.updated", data);
         const email = data.email_addresses?.[0]?.email_address;
         const updateData = {};
         if (data.first_name !== undefined) updateData.firstName = data.first_name || "";
@@ -82,6 +113,7 @@ export const handleClerkWebhook = async (req, res) => {
 
       case "user.deleted": {
         // data.deleted is true when Clerk confirms the deletion
+        console.log("CLERK_WEBHOOK: user.deleted", data);
         if (data.id) {
           await prisma.user.deleteMany({
             where: { clerkUserId: data.id },
