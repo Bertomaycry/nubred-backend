@@ -3,7 +3,7 @@ name: CI/CD Pipeline - Backend Preview
 on:
   push:
     branches:
-      - migration/staging
+      - preview
 
 permissions:
   contents: write
