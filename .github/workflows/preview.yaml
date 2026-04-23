@@ -74,6 +74,6 @@ jobs:
           script: |
             cd ~/apps/nubred
             git pull
-            git checkout migration/staging
+            git checkout preview
             docker compose up --build -d
             docker image prune -f  # clean up old layers
