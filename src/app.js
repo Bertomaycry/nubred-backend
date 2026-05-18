@@ -4,6 +4,7 @@ import userRoutes from "./routes/user.routes.js";
 import profileRoutes from "./routes/profile.routes.js";
 import inquiryRoutes from "./routes/inquiry.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
+import blogRoutes from "./routes/blog.routes.js";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/api/auth", userRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/inquiry", inquiryRoutes);
 app.use("/api/chat-history", chatRoutes);
+app.use("/api/blog", blogRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
