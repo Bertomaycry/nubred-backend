@@ -25,11 +25,13 @@
     "@prisma/client": "^5.22.0",
     "@supabase/supabase-js": "^2.89.0",
     "bcrypt": "^6.0.0",
+    "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
     "node-cron": "^4.2.1"
   },
   "devDependencies": {

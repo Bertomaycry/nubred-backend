@@ -1,17 +1,31 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import prisma from "../lib/prisma.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // @desc    Create a new blog post
 // @route   POST /api/blog/create
 // @access  Private/Admin
 export const createBlog = asyncHandler(async (req, res) => {
-  const { title, content, img_url } = req.body;
+  const { title, content } = req.body;
 
   if (!title || !content) {
     return res.status(400).json({
       success: false,
       message: "Title and content are required fields.",
     });
+  }
+
+  let img_url = null;
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.buffer, req.file.mimetype);
+    if (uploadResult && uploadResult.secure_url) {
+      img_url = uploadResult.secure_url;
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image to Cloudinary.",
+      });
+    }
   }
 
   const lastBlog = await prisma.blog.findFirst({
@@ -95,7 +109,8 @@ export const getBlogById = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 export const updateBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, content, img_url } = req.body;
+  const { title, content } = req.body;
+  let img_url = req.body.img_url;
 
   const blogExists = await prisma.blog.findUnique({
     where: { id },
@@ -106,6 +121,18 @@ export const updateBlog = asyncHandler(async (req, res) => {
       success: false,
       message: "Blog post not found",
     });
+  }
+
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.buffer, req.file.mimetype);
+    if (uploadResult && uploadResult.secure_url) {
+      img_url = uploadResult.secure_url;
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading image to Cloudinary.",
+      });
+    }
   }
 
   const updatedBlog = await prisma.blog.update({
