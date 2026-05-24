@@ -5,21 +5,26 @@ import prisma from "../lib/prisma.js";
 // @route   POST /api/blog/create
 // @access  Private/Admin
 export const createBlog = asyncHandler(async (req, res) => {
-  const { title, excerpt, content, category } = req.body;
+  const { title, content, img_url } = req.body;
 
-  if (!title || !content || !category) {
+  if (!title || !content) {
     return res.status(400).json({
       success: false,
-      message: "Title, content, and category are required fields.",
+      message: "Title and content are required fields.",
     });
   }
+
+  const lastBlog = await prisma.blog.findFirst({
+    orderBy: { order: 'desc' },
+  });
+  const newOrder = lastBlog ? lastBlog.order + 1 : 0;
 
   const blog = await prisma.blog.create({
     data: {
       title,
-      excerpt,
       content,
-      category,
+      img_url,
+      order: newOrder,
       authorId: req.user.id,
     },
   });
@@ -36,7 +41,7 @@ export const createBlog = asyncHandler(async (req, res) => {
 // @access  Public
 export const getAllBlogs = asyncHandler(async (req, res) => {
   const blogs = await prisma.blog.findMany({
-    orderBy: { createdAt: 'desc' },
+    orderBy: { order: 'asc' },
     include: {
       author: {
         select: {
@@ -90,7 +95,7 @@ export const getBlogById = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 export const updateBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, excerpt, content, category } = req.body;
+  const { title, content, img_url } = req.body;
 
   const blogExists = await prisma.blog.findUnique({
     where: { id },
@@ -107,9 +112,8 @@ export const updateBlog = asyncHandler(async (req, res) => {
     where: { id },
     data: {
       title,
-      excerpt,
       content,
-      category,
+      img_url,
     },
   });
 
@@ -144,5 +148,34 @@ export const deleteBlog = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Blog post deleted successfully",
+  });
+});
+
+// @desc    Reorder blog posts
+// @route   PUT /api/blog/reorder
+// @access  Private/Admin
+export const reorderBlogs = asyncHandler(async (req, res) => {
+  const { orderedIds } = req.body;
+
+  if (!orderedIds || !Array.isArray(orderedIds)) {
+    return res.status(400).json({
+      success: false,
+      message: "orderedIds array is required.",
+    });
+  }
+
+  // Update all blogs in a single transaction
+  const updates = orderedIds.map((id, index) => {
+    return prisma.blog.update({
+      where: { id },
+      data: { order: index },
+    });
+  });
+
+  await prisma.$transaction(updates);
+
+  res.status(200).json({
+    success: true,
+    message: "Blog posts reordered successfully",
   });
 });

@@ -164,9 +164,9 @@ model ChatHistory {
 model Blog {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   title     String
-  excerpt   String?
   content   String
-  category  String
+  img_url   String?
+  order     Int      @default(0)
   
   authorId  String   @db.ObjectId
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
@@ -175,5 +175,6 @@ model Blog {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([order])
   @@map("blogs")
 }

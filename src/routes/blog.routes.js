@@ -6,6 +6,7 @@ import {
   getBlogById,
   updateBlog,
   deleteBlog,
+  reorderBlogs,
 } from "../controllers/blog.controller.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get("/:id", getBlogById);
 
 // Protected Admin routes
 router.post("/create", jwtVerify, isAdmin, createBlog);
+router.put("/reorder", jwtVerify, isAdmin, reorderBlogs);
 router.put("/:id", jwtVerify, isAdmin, updateBlog);
 router.delete("/:id", jwtVerify, isAdmin, deleteBlog);
 
