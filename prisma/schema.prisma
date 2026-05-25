@@ -2,32 +2,30 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// User model - Main user entity with authentication and profile management
+// User model - Main user entity with Clerk authentication and business data
 model User {
-  id                         String    @id @default(auto()) @map("_id") @db.ObjectId
-  firstName                  String
-  lastName                   String?
-  email                      String    @unique
-  phoneNumber                String    @unique
-  password                   String
-  supabaseUserId             String?   @unique
-  role                       String    @default("user") // enum: user, admin
-  refreshToken               String?
-  accessToken                String?
+  id          String  @id @default(uuid())
+  clerkUserId String? @unique
+  firstName   String
+  lastName    String?
+  email       String  @unique
+  phoneNumber String? @unique
+  role        String  @default("user") // enum: user, admin
 
   // Ban system - nested object
-  ban_is_banned              Boolean   @default(false)
-  ban_type                   String?
-  ban_reason                 String?
-  ban_period                 Int?
+  ban_is_banned Boolean @default(false)
+  ban_type      String?
+  ban_reason    String?
+  ban_period    Int?
 
   // Account status flags
   account_created            Boolean   @default(false)
@@ -38,76 +36,75 @@ model User {
   is_onboarded               Boolean   @default(false)
 
   // Profile polymorphism
-  profile_type               String?   // enum: company, consultant
-  profileId                  String?   @db.ObjectId
+  profile_type String? // enum: company, consultant
 
   // Timestamps
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  companyProfile             CompanyProfile?
-  consultantProfile          ConsultantProfile?
-  chatHistory                ChatHistory[]
-  blogs                      Blog[]
+  companyProfile    CompanyProfile?
+  consultantProfile ConsultantProfile?
+  chatHistory       ChatHistory[]
+  blogs             Blog[]
 
   @@map("users")
 }
 
 // Company Profile model - Extends User with company-specific information
 model CompanyProfile {
-  id                         String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId                     String    @unique @db.ObjectId
+  id     String @id @default(uuid())
+  userId String @unique
 
   // Company information
-  legal_company_name         String
-  country_of_incorporation   String
-  vat_number                 String?
-  company_email              String
-  use_signup_email           Boolean   @default(false)
-  description                String?
+  legal_company_name       String
+  country_of_incorporation String
+  vat_number               String?
+  company_email            String
+  use_signup_email         Boolean @default(false)
+  description              String? @db.Text
 
   // Nested location object
-  location_address           String?
-  location_postal_code       String?
-  location_country           String?
+  location_address     String?
+  location_postal_code String?
+  location_country     String?
 
   // Nested legal representative object
-  legal_rep_first_name       String?
-  legal_rep_last_name        String?
-  legal_rep_email            String?
-  legal_rep_phone_number     String?
-  legal_rep_whatsapp_number  String?
+  legal_rep_first_name      String?
+  legal_rep_last_name       String?
+  legal_rep_email           String?
+  legal_rep_phone_number    String?
+  legal_rep_whatsapp_number String?
 
   // Flags
-  use_signup_info            Boolean   @default(false)
-  use_signup_phone           Boolean   @default(false)
+  use_signup_info  Boolean @default(false)
+  use_signup_phone Boolean @default(false)
 
   // Timestamps
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("companies")
 }
 
 // Consultant Profile model - Extends User with consultant-specific information
 model ConsultantProfile {
-  id                         String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId                     String    @unique @db.ObjectId
+  id     String @id @default(uuid())
+  userId String @unique
 
   // Consultant information
-  consultant_name            String
-  consultant_email           String
-  use_signup_email           Boolean   @default(false)
-  description                String?
+  consultant_name  String
+  consultant_email String
+  use_signup_email Boolean @default(false)
+  description      String? @db.Text
 
   // Nested location object
-  location_address           String?
-  location_postal_code       String?
-  location_country           String?
+  location_address     String?
+  location_postal_code String?
+  location_country     String?
 
   // Nested personal info object
   personal_info_first_name   String?
@@ -116,26 +113,26 @@ model ConsultantProfile {
   personal_info_phone_number String?
 
   // Flags
-  use_signup_info            Boolean   @default(false)
-  use_signup_phone           Boolean   @default(false)
+  use_signup_info  Boolean @default(false)
+  use_signup_phone Boolean @default(false)
 
   // Timestamps
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("consultants")
 }
 
 // Inquiry model - Contact form submissions from public users
 model Inquiry {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  name      String
-  email     String
-  contact   String
-  message   String
+  id      String @id @default(uuid())
+  name    String
+  email   String
+  contact String
+  message String @db.Text
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -146,30 +143,30 @@ model Inquiry {
 
 // ChatHistory model - Stores chat messages for users
 model ChatHistory {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  message   String
+  id      String @id @default(uuid())
+  userId  String
+  message String @db.Text
 
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("chats")
 }
 
 // Blog model - Stores blog posts
 model Blog {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  title     String
-  content   String
-  img_url   String?
-  order     Int      @default(0)
-  
-  authorId  String   @db.ObjectId
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id      String  @id @default(uuid())
+  title   String
+  content String  @db.Text
+  img_url String?
+  order   Int     @default(0)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt DateTime @default(now())

@@ -1,5 +1,5 @@
 import express from "express";
-import { jwtVerify, isAdmin } from "../middlewares/auth.middleware.js";
+import { protect, isAdmin } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import {
   createBlog,
@@ -17,9 +17,9 @@ router.get("/", getAllBlogs);
 router.get("/:id", getBlogById);
 
 // Protected Admin routes
-router.post("/create", jwtVerify, isAdmin, upload.single("image"), createBlog);
-router.put("/reorder", jwtVerify, isAdmin, reorderBlogs);
-router.put("/:id", jwtVerify, isAdmin, upload.single("image"), updateBlog);
-router.delete("/:id", jwtVerify, isAdmin, deleteBlog);
+router.post("/create", ...protect, isAdmin, upload.single("image"), createBlog);
+router.put("/reorder", ...protect, isAdmin, reorderBlogs);
+router.put("/:id", ...protect, isAdmin, upload.single("image"), updateBlog);
+router.delete("/:id", ...protect, isAdmin, deleteBlog);
 
 export default router;

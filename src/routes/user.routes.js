@@ -1,41 +1,42 @@
 import { Router } from "express";
 import {
-  handleSocialLogin,
-  login,
-  logout,
-  register,
+  getMe,
+  getUsers,
+  getSingleUser,
   completeOnboarding,
   accountCreationChecked,
   banUser,
   removeBan,
-  getUsers,
   updateBan,
   deleteUser,
-  getSingleUser,
   unregisterUser,
   registerAccount,
-  adminLogin,
   cancelUnregister,
 } from "../controllers/user.controller.js";
-import { jwtVerify } from "../middlewares/auth.middleware.js";
+import { protect } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.post("/register", register);
-router.post("/admin-login", adminLogin);
-router.get("/users", jwtVerify, getUsers);
+// Current authenticated user (used by frontend on every app load)
+router.get("/me", ...protect, getMe);
+
+// User lookups
+router.get("/users", ...protect, getUsers);
 router.get("/user/:_id", getSingleUser);
-router.post("/login", login);
-router.post("/logout", jwtVerify, logout);
-router.post("/social-login", handleSocialLogin);
-router.post("/complete-onboarding", completeOnboarding);
-router.post("/account-creation-skipped", accountCreationChecked);
-router.post("/ban-user", jwtVerify, banUser);
-router.post("/unban", jwtVerify, removeBan);
-router.post("/update-ban", jwtVerify, updateBan);
-router.delete("/delete-user/:_id", jwtVerify, deleteUser);
-router.post("/unregister/:_id", jwtVerify, unregisterUser);
-router.post("/cancel-unregister/:_id", jwtVerify, cancelUnregister);
-router.post("/register-account", jwtVerify, registerAccount);
+
+// Onboarding / account status
+router.post("/complete-onboarding", ...protect, completeOnboarding);
+router.post("/account-creation-skipped", ...protect, accountCreationChecked);
+
+// Admin: ban management
+router.post("/ban-user", ...protect, banUser);
+router.post("/unban", ...protect, removeBan);
+router.post("/update-ban", ...protect, updateBan);
+
+// Account management
+router.delete("/delete-user/:_id", ...protect, deleteUser);
+router.post("/unregister/:_id", ...protect, unregisterUser);
+router.post("/cancel-unregister/:_id", ...protect, cancelUnregister);
+router.post("/register-account", ...protect, registerAccount);
 
 export default router;

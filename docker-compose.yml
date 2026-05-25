@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=${PORT:-8080}
+    networks:
+      - backend-network
+
+networks:
+  backend-network:
+    driver: bridge

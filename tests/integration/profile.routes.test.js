@@ -89,7 +89,7 @@ describe("Profile Routes - Integration", () => {
     });
 
     it("should return 404 when user does not exist", async () => {
-      const fakeUserId = "67575bc829f1edf36a7582aa";
+      const fakeUserId = "aaaaaaaa-bbbb-4ccc-bddd-eeeeeeeeeeee";
 
       const res = await request(app).post(`${baseUrl}/create`).send({
         _id: fakeUserId,
@@ -132,13 +132,14 @@ describe("Profile Routes - Integration", () => {
 
       const updatedUser = await prisma.user.findUnique({
         where: { id: userCompany.id },
+        include: { companyProfile: { select: { id: true } } },
       });
       expect(updatedUser.account_created).toBe(true);
       expect(updatedUser.profile_type).toBe("company");
-      expect(updatedUser.profileId).toBeDefined();
+      expect(updatedUser.companyProfile?.id).toBeDefined();
     });
 
-    it("should return 400 when profile already exists for user", async () => {
+    it("should return 200 idempotent when company profile already exists", async () => {
       const res = await request(app).post(`${baseUrl}/create`).send({
         _id: userCompany.id,
         profile_type: "company",
@@ -149,9 +150,9 @@ describe("Profile Routes - Integration", () => {
         },
       });
 
-      expect(res.statusCode).toBe(400);
-      expect(res.body.success).toBe(false);
-      expect(res.body.message).toBe("Profile already exists for this user.");
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toContain("already present");
     });
 
     it("should create CONSULTANT profile successfully (201)", async () => {
@@ -179,10 +180,11 @@ describe("Profile Routes - Integration", () => {
 
       const updatedUser = await prisma.user.findUnique({
         where: { id: userConsultant.id },
+        include: { consultantProfile: { select: { id: true } } },
       });
       expect(updatedUser.account_created).toBe(true);
       expect(updatedUser.profile_type).toBe("consultant");
-      expect(updatedUser.profileId).toBeDefined();
+      expect(updatedUser.consultantProfile?.id).toBeDefined();
     });
   });
 
@@ -233,7 +235,7 @@ describe("Profile Routes - Integration", () => {
         .put(`${baseUrl}/update-profile`)
         .set("Authorization", `Bearer ${tokenCompany}`)
         .send({
-          profile_id: "67575bc829f1edf36a7582aa",
+          profile_id: "aaaaaaaa-bbbb-4ccc-bddd-111111111111",
           profile_type: "company",
           profile_data: { description: "update" },
         });
@@ -248,7 +250,7 @@ describe("Profile Routes - Integration", () => {
         .put(`${baseUrl}/update-profile`)
         .set("Authorization", `Bearer ${tokenConsultant}`)
         .send({
-          profile_id: "67575bc829f1edf36a7582aa",
+          profile_id: "aaaaaaaa-bbbb-4ccc-bddd-222222222222",
           profile_type: "consultant",
           profile_data: { description: "update" },
         });
@@ -258,25 +260,27 @@ describe("Profile Routes - Integration", () => {
       expect(res.body.message).toBe("consultant profile not found.");
     });
 
-    it("should return 500 for invalid profile_id (CastError)", async () => {
+    it("should return 404 for non-existent profile_id", async () => {
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
         .set("Authorization", `Bearer ${tokenCompany}`)
         .send({
-          profile_id: "not-a-valid-objectid",
+          profile_id: "00000000-0000-4000-8000-000000000000",
           profile_type: "company",
           profile_data: { description: "update" },
         });
 
-      expect(res.statusCode).toBe(500);
-      expect(res.body.message).toBe("Server error while updating profile.");
+      expect(res.statusCode).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("company profile not found.");
     });
 
     it("should update COMPANY profile successfully (200)", async () => {
       const u = await prisma.user.findUnique({
         where: { id: userCompany.id },
+        include: { companyProfile: { select: { id: true } } },
       });
-      const profileId = u.profileId;
+      const profileId = u.companyProfile.id;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -296,8 +300,9 @@ describe("Profile Routes - Integration", () => {
     it("should update CONSULTANT profile successfully (200)", async () => {
       const u = await prisma.user.findUnique({
         where: { id: userConsultant.id },
+        include: { consultantProfile: { select: { id: true } } },
       });
-      const profileId = u.profileId;
+      const profileId = u.consultantProfile.id;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -318,20 +323,20 @@ describe("Profile Routes - Integration", () => {
   describe("GET /user-profile/:_id", () => {
     it("should return 404 when user not found", async () => {
       const res = await request(app).get(
-        `${baseUrl}/user-profile/67575bc829f1edf36a7582aa`
+        `${baseUrl}/user-profile/aaaaaaaa-bbbb-4ccc-bddd-ffffffffffff`
       );
 
       expect(res.statusCode).toBe(404);
       expect(res.body.message).toBe("User not found.");
     });
 
-    it("should return 500 for invalid user id (CastError)", async () => {
+    it("should return 404 for unknown user id (valid UUID format)", async () => {
       const res = await request(app).get(
-        `${baseUrl}/user-profile/not-a-valid-objectid`
+        `${baseUrl}/user-profile/00000000-0000-4000-8000-000000000001`
       );
 
-      expect(res.statusCode).toBe(500);
-      expect(res.body.message).toBe("Server error while fetching profile.");
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toBe("User not found.");
     });
 
     it("should return user profile successfully (200)", async () => {
@@ -353,8 +358,9 @@ describe("Profile Routes - Integration", () => {
       // UserCompany tries to update UserConsultant's profile
       const consultantUser = await prisma.user.findUnique({
         where: { id: userConsultant.id },
+        include: { consultantProfile: { select: { id: true } } },
       });
-      const consultantProfileId = consultantUser.profileId;
+      const consultantProfileId = consultantUser.consultantProfile.id;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -373,8 +379,9 @@ describe("Profile Routes - Integration", () => {
     it("should allow user to update their own company profile", async () => {
       const companyUser = await prisma.user.findUnique({
         where: { id: userCompany.id },
+        include: { companyProfile: { select: { id: true } } },
       });
-      const companyProfileId = companyUser.profileId;
+      const companyProfileId = companyUser.companyProfile.id;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
@@ -393,8 +400,9 @@ describe("Profile Routes - Integration", () => {
     it("should allow user to update their own consultant profile", async () => {
       const consultantUser = await prisma.user.findUnique({
         where: { id: userConsultant.id },
+        include: { consultantProfile: { select: { id: true } } },
       });
-      const consultantProfileId = consultantUser.profileId;
+      const consultantProfileId = consultantUser.consultantProfile.id;
 
       const res = await request(app)
         .put(`${baseUrl}/update-profile`)
