@@ -46,6 +46,7 @@ model User {
   companyProfile    CompanyProfile?
   consultantProfile ConsultantProfile?
   chatHistory       ChatHistory[]
+  blogs             Blog[]
 
   @@map("users")
 }
@@ -154,4 +155,23 @@ model ChatHistory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("chats")
+}
+
+// Blog model - Stores blog posts
+model Blog {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  img_url   String?
+  order     Int      @default(0)
+  
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+  @@map("blogs")
 }

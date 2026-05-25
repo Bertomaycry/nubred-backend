@@ -84,3 +84,18 @@ export const attachUser = async (req, res, next) => {
  *   router.get("/me", ...protect, handler)
  */
 export const protect = [requireClerkAuth, attachUser];
+
+/**
+ * Checks if the attached DB user has the admin role.
+ */
+export const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
+    next();
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: "Not authorized as an admin",
+    });
+  }
+};
+
