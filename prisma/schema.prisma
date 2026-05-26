@@ -157,6 +157,17 @@ model ChatHistory {
   @@map("chats")
 }
 
+// EarlyAdopter model - Landing page early adopter signups
+model EarlyAdopter {
+  id    String @id @default(uuid())
+  email String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("early_adopters")
+}
+
 // Blog model - Stores blog posts
 model Blog {
   id      String  @id @default(uuid())
