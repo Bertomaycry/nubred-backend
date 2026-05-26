@@ -7,6 +7,7 @@ import inquiryRoutes from "./routes/inquiry.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
 import blogRoutes from "./routes/blog.routes.js";
+import earlyAdopterRoutes from "./routes/early-adopter.routes.js";
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/inquiry", inquiryRoutes);
 app.use("/api/chat-history", chatRoutes);
 app.use("/api/blog", blogRoutes);
+app.use("/api/early-adopters", earlyAdopterRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
