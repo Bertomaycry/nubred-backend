@@ -1,5 +1,10 @@
 import prisma from "../lib/prisma.js";
 import { sendEarlyAdopterConfirmation } from "../lib/resend.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import {
+  parsePaginationQuery,
+  buildPaginationMeta,
+} from "../utils/pagination.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -58,3 +63,65 @@ export const subscribeEarlyAdopter = async (req, res) => {
     });
   }
 };
+
+// @desc    List early adopters (admin dashboard)
+// @route   GET /api/early-adopters
+// @access  Private/Admin
+export const getEarlyAdopters = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = parsePaginationQuery(req.query);
+
+  const search =
+    typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+  const where = search
+    ? { email: { contains: search, mode: "insensitive" } }
+    : {};
+
+  const [earlyAdopters, total] = await Promise.all([
+    prisma.earlyAdopter.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        email: true,
+        createdAt: true,
+      },
+    }),
+    prisma.earlyAdopter.count({ where }),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: earlyAdopters,
+    pagination: buildPaginationMeta({ page, limit, total }),
+  });
+});
+
+// @desc    Delete an early adopter
+// @route   DELETE /api/early-adopters/:id
+// @access  Private/Admin
+export const deleteEarlyAdopter = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const existing = await prisma.earlyAdopter.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    return res.status(404).json({
+      success: false,
+      message: "Early adopter not found",
+    });
+  }
+
+  await prisma.earlyAdopter.delete({
+    where: { id },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Early adopter deleted successfully",
+  });
+});
