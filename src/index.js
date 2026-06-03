@@ -4,7 +4,9 @@ import connectDB from "./db/index.js";
 import app from "./app.js";
 import { scheduleUnregisterJob } from "./crons/unregisterJob.js";
 
-scheduleUnregisterJob()
+if (!process.env.NODE_APP_INSTANCE || process.env.NODE_APP_INSTANCE === '0') {
+  scheduleUnregisterJob();
+}
 
 connectDB()
   .then(() => {

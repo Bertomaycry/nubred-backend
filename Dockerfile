@@ -27,13 +27,16 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
+RUN npm install -g pm2
+
 ENV NODE_ENV=production
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY src ./src
+COPY ecosystem.config.cjs ./
 
 EXPOSE 8080
 
-CMD ["npm", "start"]
+CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]
