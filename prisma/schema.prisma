@@ -157,14 +157,22 @@ model ChatHistory {
   @@map("chats")
 }
 
+enum EarlyAdopterApp {
+  governance
+  node
+}
+
 // EarlyAdopter model - Landing page early adopter signups
 model EarlyAdopter {
-  id    String @id @default(uuid())
-  email String @unique
+  id    String          @id @default(uuid())
+  email String
+  app   EarlyAdopterApp @default(governance)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([email, app])
+  @@index([app])
   @@map("early_adopters")
 }
 

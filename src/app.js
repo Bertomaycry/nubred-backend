@@ -14,7 +14,12 @@ const app = express();
 // CORS configuration - must be before routes
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://preview.nubred.com"],
+    origin: [
+      "http://localhost:5173",
+      "https://preview.nubred.com",
+      "https://governance.nubred.com",
+      "https://node.nubred.com",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,

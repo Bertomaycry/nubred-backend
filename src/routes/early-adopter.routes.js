@@ -10,6 +10,8 @@ const router = express.Router();
 
 router.get("/", ...protect, isAdmin, getEarlyAdopters);
 router.delete("/:id", ...protect, isAdmin, deleteEarlyAdopter);
-router.post("/subscribe", subscribeEarlyAdopter);
+router.post("/governance/subscribe", subscribeEarlyAdopter("governance"));
+router.post("/node/subscribe", subscribeEarlyAdopter("node"));
+router.post("/subscribe", subscribeEarlyAdopter("governance"));
 
 export default router;
