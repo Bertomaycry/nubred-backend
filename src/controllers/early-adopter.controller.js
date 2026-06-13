@@ -8,7 +8,14 @@ import {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const subscribeEarlyAdopter = async (req, res) => {
+const APP_LABELS = {
+  governance: "Governance",
+  node: "Node",
+};
+
+const VALID_APPS = new Set(["governance", "node"]);
+
+export const subscribeEarlyAdopter = (app) => async (req, res) => {
   const { email } = req.body;
 
   if (!email || typeof email !== "string") {
@@ -29,22 +36,22 @@ export const subscribeEarlyAdopter = async (req, res) => {
 
   try {
     const existing = await prisma.earlyAdopter.findUnique({
-      where: { email: normalizedEmail },
+      where: { email_app: { email: normalizedEmail, app } },
     });
 
     if (existing) {
       return res.status(200).json({
         success: true,
-        message: "You're already on the early adopter list",
+        message: `You're already on the ${APP_LABELS[app]} early adopter list`,
       });
     }
 
     const earlyAdopter = await prisma.earlyAdopter.create({
-      data: { email: normalizedEmail },
+      data: { email: normalizedEmail, app },
     });
 
     try {
-      await sendEarlyAdopterConfirmation(normalizedEmail);
+      await sendEarlyAdopterConfirmation(normalizedEmail, app);
     } catch (emailError) {
       await prisma.earlyAdopter.delete({ where: { id: earlyAdopter.id } });
       throw emailError;
@@ -52,8 +59,13 @@ export const subscribeEarlyAdopter = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Thanks for signing up! Check your inbox for a confirmation email.",
-      data: { id: earlyAdopter.id, email: earlyAdopter.email },
+      message:
+        "Thanks for signing up! Check your inbox for a confirmation email.",
+      data: {
+        id: earlyAdopter.id,
+        email: earlyAdopter.email,
+        app: earlyAdopter.app,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -73,9 +85,15 @@ export const getEarlyAdopters = asyncHandler(async (req, res) => {
   const search =
     typeof req.query.search === "string" ? req.query.search.trim() : "";
 
-  const where = search
-    ? { email: { contains: search, mode: "insensitive" } }
-    : {};
+  const where = {};
+
+  if (search) {
+    where.email = { contains: search, mode: "insensitive" };
+  }
+
+  if (typeof req.query.app === "string" && VALID_APPS.has(req.query.app)) {
+    where.app = req.query.app;
+  }
 
   const [earlyAdopters, total] = await Promise.all([
     prisma.earlyAdopter.findMany({
@@ -86,6 +104,7 @@ export const getEarlyAdopters = asyncHandler(async (req, res) => {
       select: {
         id: true,
         email: true,
+        app: true,
         createdAt: true,
       },
     }),
