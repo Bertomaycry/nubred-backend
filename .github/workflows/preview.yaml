@@ -1,0 +1,80 @@
+name: CI/CD Pipeline - Backend Preview
+
+on:
+  push:
+    branches:
+      - preview
+
+permissions:
+  contents: write
+
+jobs:
+  # --- CI JOB: Quality & Build Check ---
+  CI-Validation-Preview:
+    runs-on: ubuntu-latest
+    environment: Preview
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      RESEND_API_KEY: "re_dummy"
+      
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      # The previous test step has been replaced with a direct application start, as requested.
+      - name: Start Application
+        # This command executes the 'start' script from package.json, typically for running the application.
+        run: |
+          set -e
+
+          # Start server in background and capture logs
+          npm start > server.log 2>&1 &
+          SERVER_PID=$!
+
+          echo "⏳ Waiting for server to boot..."
+
+          # Wait up to 15 seconds for the log line
+          for i in {1..15}; do
+            if grep -q "Server running" server.log; then
+              kill $SERVER_PID
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "❌ Server did not start in time"
+          echo "---- Server logs ----"
+          cat server.log
+          kill $SERVER_PID
+          exit 1
+
+  CD-Branch:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    needs: CI-Validation-Preview  # Only runs if CI passes
+    environment: Preview
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/apps/nubred
+            git pull
+            git checkout preview
+            docker compose up --build -d
+            docker image prune -f  # clean up old layers

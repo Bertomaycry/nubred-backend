@@ -1,8 +1,11 @@
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 
 export const createUserProfile = async (req, res) => {
   try {
-    const userId = req.body._id;
+    // userId comes from the authenticated session; _id in body is accepted as
+    // a legacy fallback so existing clients keep working during rollout.
+    const userId = req.user?.id ?? req.body._id;
     const { profile_type, profile_data } = req.body;
 
     if (!["company", "consultant"].includes(profile_type)) {
@@ -20,17 +23,70 @@ export const createUserProfile = async (req, res) => {
       });
     }
 
-    if (existingUser.profileId) {
+    const [existingCompany, existingConsultant] = await Promise.all([
+      prisma.companyProfile.findUnique({ where: { userId } }),
+      prisma.consultantProfile.findUnique({ where: { userId } }),
+    ]);
+
+    if (existingCompany && existingConsultant) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Inconsistent profile data for this user. Please contact support.",
+      });
+    }
+
+    if (existingCompany && profile_type === "consultant") {
       return res.status(400).json({
         success: false,
-        message: "Profile already exists for this user.",
+        message: "A company profile already exists for this user.",
+      });
+    }
+
+    if (existingConsultant && profile_type === "company") {
+      return res.status(400).json({
+        success: false,
+        message: "A consultant profile already exists for this user.",
+      });
+    }
+
+    if (profile_type === "company" && existingCompany) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          account_created: true,
+          profile_type: "company",
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        message:
+          "Company profile was already present; account linked successfully.",
+        profile_id: existingCompany.id,
+        data: existingCompany,
+      });
+    }
+
+    if (profile_type === "consultant" && existingConsultant) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          account_created: true,
+          profile_type: "consultant",
+        },
+      });
+      return res.status(200).json({
+        success: true,
+        message:
+          "Consultant profile was already present; account linked successfully.",
+        profile_id: existingConsultant.id,
+        data: existingConsultant,
       });
     }
 
     let createdProfile;
 
     if (profile_type === "company") {
-      // Transform nested objects to flat structure for Prisma
       const companyData = {
         userId: userId,
         legal_company_name: profile_data.legal_company_name,
@@ -41,11 +97,9 @@ export const createUserProfile = async (req, res) => {
         description: profile_data.description,
         use_signup_info: profile_data.use_signup_info ?? false,
         use_signup_phone: profile_data.use_signup_phone ?? false,
-        // Flatten location object
         location_address: profile_data.location?.address,
         location_postal_code: profile_data.location?.postal_code,
         location_country: profile_data.location?.country,
-        // Flatten legal_representative object
         legal_rep_first_name: profile_data.legal_representative?.first_name,
         legal_rep_last_name: profile_data.legal_representative?.last_name,
         legal_rep_email: profile_data.legal_representative?.email,
@@ -54,11 +108,18 @@ export const createUserProfile = async (req, res) => {
           profile_data.legal_representative?.whatsapp_number,
       };
 
-      createdProfile = await prisma.companyProfile.create({
-        data: companyData,
+      createdProfile = await prisma.$transaction(async (tx) => {
+        const cp = await tx.companyProfile.create({ data: companyData });
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            account_created: true,
+            profile_type: profile_type,
+          },
+        });
+        return cp;
       });
     } else {
-      // Transform nested objects to flat structure for Prisma
       const consultantData = {
         userId: userId,
         consultant_name: profile_data.consultant_name,
@@ -67,31 +128,27 @@ export const createUserProfile = async (req, res) => {
         description: profile_data.description,
         use_signup_info: profile_data.use_signup_info ?? false,
         use_signup_phone: profile_data.use_signup_phone ?? false,
-        // Flatten location object
         location_address: profile_data.location?.address,
         location_postal_code: profile_data.location?.postal_code,
         location_country: profile_data.location?.country,
-        // Flatten personal_info object
         personal_info_first_name: profile_data.personal_info?.first_name,
         personal_info_last_name: profile_data.personal_info?.last_name,
         personal_info_email: profile_data.personal_info?.email,
         personal_info_phone_number: profile_data.personal_info?.phone_number,
       };
 
-      createdProfile = await prisma.consultantProfile.create({
-        data: consultantData,
+      createdProfile = await prisma.$transaction(async (tx) => {
+        const cp = await tx.consultantProfile.create({ data: consultantData });
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            account_created: true,
+            profile_type: profile_type,
+          },
+        });
+        return cp;
       });
     }
-
-    // Update user with profile reference
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        account_created: true,
-        profile_type: profile_type,
-        profileId: createdProfile.id,
-      },
-    });
 
     res.status(201).json({
       success: true,
@@ -100,6 +157,15 @@ export const createUserProfile = async (req, res) => {
       data: createdProfile,
     });
   } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: "A profile for this user already exists.",
+      });
+    }
     console.error("Error creating profile:", err);
     res.status(500).json({ message: "Server error while creating profile." });
   }
@@ -119,7 +185,6 @@ export const getUserProfile = async (req, res) => {
         phoneNumber: true,
         account_created: true,
         profile_type: true,
-        profileId: true,
         unregister_requested: true,
         companyProfile: true,
         consultantProfile: true,

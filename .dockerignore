@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+docker-compose*
+.dockerignore
+.git
+.gitignore
+.env
+.env.sample
+tests
+MIGRATION_SUMMARY.md
+TEST_IMPLEMENTATION_DETAILS.md
+Readme.md
+prisma/migrations
