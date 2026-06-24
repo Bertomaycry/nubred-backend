@@ -1,0 +1,91 @@
+name: Eagle Apps Task
+description: One Issue equals one 2-4 hour task.
+title: "[Task]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One Issue equals one 2-4 hour task. Split larger work before starting.
+
+  - type: checkboxes
+    id: pre-start-confirmation
+    attributes:
+      label: Pre-start developer confirmation
+      description: Complete this checklist before starting work.
+      options:
+        - label: I read the Figma spec and/or Loom videos before starting work.
+          required: true
+        - label: I understand every acceptance criterion listed below.
+          required: true
+        - label: I understand what is out of scope.
+          required: true
+        - label: I will ask for written approval before changing scope.
+          required: true
+
+  - type: input
+    id: figma-reference
+    attributes:
+      label: Figma Reference
+      placeholder: Figma link, frame name, or Loom link
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-to-build
+    attributes:
+      label: What to build
+      description: Describe the task clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the required outcomes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of Scope
+      description: List anything explicitly excluded.
+    validations:
+      required: true
+
+  - type: input
+    id: estimated-hours
+    attributes:
+      label: Estimated Hours
+      placeholder: 2-4
+    validations:
+      required: true
+
+  - type: input
+    id: milestone-epic
+    attributes:
+      label: Milestone / Epic
+      placeholder: Milestone or epic name/link
+    validations:
+      required: true
+
+  - type: input
+    id: linked-pr
+    attributes:
+      label: Linked PR
+      placeholder: PR link or number
+
+  - type: dropdown
+    id: task-label
+    attributes:
+      label: Label
+      options:
+        - frontend
+        - backend
+        - bug
+        - feature
+        - AI
+        - DevOps
+    validations:
+      required: true
