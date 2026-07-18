@@ -16,9 +16,14 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "https://nubred.com",
+      "https://www.nubred.com",
       "https://preview.nubred.com",
+      "https://www.preview.nubred.com",
       "https://governance.nubred.com",
+      "https://www.governance.nubred.com",
       "https://node.nubred.com",
+      "https://www.node.nubred.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
