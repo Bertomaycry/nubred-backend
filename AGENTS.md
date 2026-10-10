@@ -1,0 +1,7 @@
+- When reporting information to me, be extremely concise and sacrifice grammar for the sake of concision.
+- Don't add features, refactors, or docs I didn't ask for.
+- Prefer existing patterns in `src/modules/project/` over new abstractions.
+- All LLM calls go through `src/modules/project/llm/`. Never import a vendor SDK elsewhere.
+- Confirmation rules are server-side (`*.rules.js`). Don't "fix" them only in API docs.
+- Free-tier Gemini: no real client contracts. Demo with `sections/contract/fixtures/golden/`.
+- Point at `docs/PROJECT_STRUCTURE.md` and `docs/api/` instead of restating them.

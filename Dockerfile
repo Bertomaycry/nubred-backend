@@ -9,7 +9,8 @@ RUN echo "fetch-retries=5" >> /root/.npmrc \
     && echo "fetch-timeout=300000" >> /root/.npmrc
 
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY prisma/schema.prisma ./prisma/schema.prisma
+COPY prisma/migrations ./prisma/migrations
 
 # Cap Node heap to prevent OOM kill during install
 ENV NODE_OPTIONS="--max-old-space-size=1024"
@@ -33,10 +34,12 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
+COPY --from=builder /app/prisma/migrations ./prisma/migrations
 COPY src ./src
 COPY ecosystem.config.cjs ./
 
 EXPOSE 8080
 
-CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]
+# Apply pending migrations once, then start the app. exec keeps pm2 as PID 1.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec pm2-runtime start ecosystem.config.cjs"]

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { clerkMiddleware } from "@clerk/express";
@@ -8,6 +9,7 @@ import chatRoutes from "./routes/chat.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
 import blogRoutes from "./routes/blog.routes.js";
 import earlyAdopterRoutes from "./routes/early-adopter.routes.js";
+import projectRoutes from "./routes/project.routes.js";
 
 const app = express();
 
@@ -32,7 +34,7 @@ app.use(
       "https://www.node.nubred.com",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Slug"],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -47,7 +49,7 @@ app.use("/webhooks", webhookRoutes);
 // Must be added before any route that calls requireAuth() / getAuth().
 app.use(clerkMiddleware());
 
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
@@ -58,6 +60,7 @@ app.use("/api/inquiry", inquiryRoutes);
 app.use("/api/chat-history", chatRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/early-adopters", earlyAdopterRoutes);
+app.use("/api/projects", projectRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });

@@ -1,0 +1,191 @@
+EXCLUSIVE VARIETY LICENCE AGREEMENT
+(Full Commercial Licence — F1)
+
+Contract reference: NBR-LIC-F1-2024-014
+Language: English. English text prevails.
+Effective Date / date of signature: 15 March 2024
+Place: Bologna, Italy
+
+PARTIES
+
+(1) C.I.V. Consorzio Italiano Vivaisti soc. cons. a r.l., Via Romea 116, 44020 San Giuseppe
+di Comacchio (FE), Italy (the "Licensor", "Breeder" and "Principal").
+
+(2) Agropro Iberia S.L., Calle de Alcalá 480, 28027 Madrid, Spain (the "Licensee" and "IVM").
+
+(3) Vivaio Verde Autorizado S.A., Camino de la Huerta 12, 46113 Valencia, Spain
+(the "Authorised Nursery").
+
+WHEREAS the Licensor holds Community Plant Variety Rights in yellow-flesh kiwifruit
+(Actinidia chinensis). This Agreement is a Full Commercial Licence: the Licensee may
+propagate, cultivate and commercialise the Licensed Varieties with the Licensed Trademark.
+The Licensee bears commercial risk. The Licensor collects royalties. No sale of fruit is
+permitted during Trial or Pilot.
+
+ARTICLE 1 — VARIETIES AND IP
+
+Species for all genotypes: Actinidia chinensis (kiwifruit / yellow kiwi).
+
+1.1 Smeralda — breeder code CVRI-08 — VARIETY — PBR PROTECTED — office CPVO —
+    grant CPVO 44847 (granted 18 June 2022). Expected PBR expiry: 31 December 2056.
+    Scale planting plan: 30,000 plants. Linked phases: TRIAL, PILOT, LAUNCH, SCALE.
+
+1.2 Dorì Gold — breeder code CVRI-14A — VARIETY — PBR PROTECTED — office CPVO —
+    grant CPVO 45102 (granted 4 November 2023). Scale planting plan: 18,000 plants.
+    Linked phases: TRIAL, PILOT, LAUNCH, SCALE.
+
+1.3 NPV-Yellow-21 — breeder code CIV/21-Y — SELECTION — PBR APPLICATION_PENDING —
+    office CPVO — filing A2023-1188 (filed 9 May 2023). Trial only: 40 plants.
+    Linked phases: TRIAL. Option Right applies.
+
+1.4 Licensed Trademark "Dorì", EUIPO 018012345, territory European Union, included in
+    this contract (not a separate TM licence). Trademark Use Policy is Annex 8.
+
+1.5 EDV clause: present. EDVs and mutations discovered by Licensee, Nursery or growers
+    belong exclusively to C.I.V. Immediate written notification and tissue sample within
+    15 days is required.
+
+ARTICLE 2 — TERRITORIES AND RIGHTS
+
+Production territory: Spain (mainland), Portugal and the Balearic Islands.
+Commercialisation territory: European Union + Middle East (UAE, Saudi Arabia, Qatar, Israel).
+Exclusivity: Propagation non-exclusive. Cultivation exclusive in Production Territory,
+subject to Minimum Quantities. Commercialisation exclusive in Commercialisation Territory,
+subject to Minimum Quantities. Trademark use exclusive, subject to TUP.
+
+Rights granted:
+- PROPAGATION — non-exclusive — Production Territory — through Authorised Nursery only.
+- CULTIVATION — exclusive — Production Territory — georeferenced parcels only.
+- COMMERCIALISATION — exclusive — Commercialisation Territory — entire harvest to
+  Authorised Distributors.
+- TRADEMARK_USE — exclusive — Commercialisation Territory — TUP applies.
+- VCU_EVALUATION — non-exclusive — Evaluation Period only — no sale of plants or fruit.
+
+ARTICLE 3 — PHASES
+
+Release Date: 1 September 2024. Evaluation Period: 4 growing seasons from Release Date
+(ends 31 August 2028).
+
+3.1 Evaluation Period / VCU Phase → NuBred TRIAL (EXPERIMENTAL).
+    Objective: screen Licensed Varieties; no commercial activity.
+    Duration: 4 growing seasons from Release Date.
+    Start trigger: Release Date 1 September 2024.
+    Location: Lleida (Spain) and Vale do Tejo (Portugal).
+    Plant count: 120 (40 per genotype). Hectares: 0.12.
+    Gate to Pilot: all Trial observations complete + VM Promote/Repeat/Discard per genotype.
+    Capitolato defined: not applicable at Trial.
+    Decisions on 12 October 2026: Smeralda PROMOTE to Pilot; Dorì Gold PROMOTE to Pilot;
+    NPV-Yellow-21 REPEAT Trial (insufficient fruit-set data).
+
+3.2 Semi-Commercial Validation → NuBred PILOT (EXPERIMENTAL).
+    Objective: validate at ~0.5–1 ha; no commercial sale.
+    Duration: 2 growing seasons from Trial gate (target start 1 March 2027).
+    Location: Lleida and Ribatejo. Plant count: 1,600. Hectares: 0.80.
+    Gate to Launch: observations complete + production forecast validated + Capitolato
+    defined (HARD GATE — Launch blocked until Capitolato is defined) + VM confirmation.
+    Capitolato defined: YES — Annex 7 signed 20 January 2028.
+    Decisions on 15 February 2028: Smeralda PROMOTE to Launch; Dorì Gold PROMOTE to Launch.
+
+3.3 Commercial Introduction → NuBred LAUNCH (COMMERCIAL).
+    Objective: first commercial season; PBR and Brand royalties active.
+    Duration: 1 commercial season (2028/2029).
+    Start trigger: Pilot gate + Capitolato in force (target 1 March 2028).
+    Plant count: 10,000. Hectares: 5.0.
+    Gate to Scale: production forecast validated + royalty reporting complete + VM confirmation.
+    Commercial Protocol applies from Launch. Observational Protocol does not continue.
+
+3.4 Full Commercial Expansion → NuBred SCALE (COMMERCIAL).
+    Duration: until CPVO PBR expiry (expected 31 December 2056).
+    Start trigger: Launch gate (target 1 March 2029).
+    Plant count: 50,000. Hectares: 25.0.
+
+ARTICLE 4 — MONEY, OPTIONS, REPORTS
+
+Minimum quantities (Finished Plants): Year 1 (Launch) 10,000; Year 2 25,000; Year 3+ 50,000.
+Tolerance: −15%. Recovery years: 2 consecutive seasons.
+Enforcement: Step 1 lump-sum indemnity (shortfall × €2.50); Step 2 revoke exclusivity;
+Step 3 termination.
+
+Entry fee: €200,000 payable within 30 days of signing (due 14 April 2024). Partially
+refundable (50%) if CPVO PBR for Smeralda is cancelled.
+Royalty: PBR royalty €28 per 1,000 plants embedded in Finished Plant price. Brand royalty
+€0.12 per kg packed fruit meeting Capitolato, from Launch, invoiced after the
+commercialisation report. No royalty during Trial or Pilot.
+Payment calendar: commercialisation report 15 January; Brand royalty payment 28 February;
+late payment 5% annual interest; mother plant census 31 March; harvest declaration within
+30 days of harvest completion.
+
+Optioned varieties: NPV-Yellow-21 (CIV/21-Y).
+MLC: same royalty as above; exclusive commercialisation subject to MQ; Year 1 option MQ
+5,000 plants.
+Exercise window: 60 days from 31 August 2028. Non-exercise = irrevocable waiver of cost
+reimbursement.
+ROFR: if Licensor licences a non-selected NPV to a third party in the Production Territory,
+Licensee receives documented VCU cost reimbursement capped at €40,000 per NPV.
+
+Reports:
+- Mother plant census — 31 March each year — GPS location, variety, health certificates.
+- VCU annual report — 30 November during Trial and Pilot — quality, production, recommendation.
+- Harvest declaration — within 30 days of harvest completion — kg per variety, pack-out %.
+- Commercialisation report — 15 January — packed kg and Brand royalty calculation.
+
+ARTICLE 5 — TERM, TERMINATION, PENALTIES, LAW
+
+Term: from 15 March 2024 until expiry of CPVO PBR for Smeralda (expected 31 December 2056).
+Automatic renewal if PBR is extended unless 180 days' written notice of non-renewal.
+Either Party may elect not to renew.
+
+EXPRESS termination (no notice, art. 1456 Italian Civil Code equivalent): non-payment of
+royalties for more than 30 days; failure to meet Minimum Quantities for 2 consecutive
+seasons after recovery; unauthorised propagation; sale of fruit outside Commercialisation
+Territory; failure to notify an EDV within 15 days.
+
+ORDINARY termination: either Party for convenience with 180 days' notice after the
+Evaluation Period; Licensee if Licensor fails to maintain PBR and does not cure within
+90 days.
+
+Penalties: plants from unauthorised source €5.00 per plant, LICENSEE to LICENSOR;
+false census 10× declared royalties, LICENSEE to LICENSOR.
+
+Surviving obligations: Confidentiality indefinitely; EDV notification indefinitely;
+plant destruction within 30 days post-termination; IP non-challenge 5 years
+post-termination; breeding limitation 20 years for VCU data.
+
+Governing law: Italian law. Forum: Court of Bologna. Licensor may unilaterally bring
+proceedings before any other competent court in the Production Territory.
+Arbitration: false.
+
+Capitolato (Annex 7, signed 20 January 2028): Brix ≥ 15.5 °Brix; firmness ≥ 6.0 kg/0.5cm²;
+zero tolerance for PSA (Pseudomonas syringae pv. actinidiae).
+
+ARTICLE 6 — PROTOCOLS (SHORT)
+
+6.1 OBSERVATIONAL protocol — name: "VCU Evaluation Protocol — Kiwifruit".
+    Linked phase: TRIAL (also used in PILOT). Source: Annex 5.
+    Objective: trial report and Promote/Repeat/Discard per genotype.
+
+    (1) Brix — original name Soluble solids content — family F2 — NUMBER — unit °Brix —
+        refractometer on juice from min 5 fruits — EVENT_BASED per harvest —
+        threshold Quantitative Absolute ≥15.5°Brix — eliminatory L2 — sample 30 fruit per plot.
+    (2) Plant vigour — family F1 — SCALE 1–9 HIGHER_BETTER — UPOV visual on 30 plants —
+        CALENDAR_FIXED 3× per season — threshold class ≥5 — eliminatory L2.
+    (3) PSA — family F4 — BOOLEAN — weekly CALENDAR_FIXED plus ON_DEMAND —
+        Boolean eliminatory: no quarantine pathogen detected — eliminatory L1.
+    (4) Irrigation log — family F8 — TEXT — CALENDAR_FIXED weekly — operational log.
+
+6.2 COMMERCIAL protocol — name: "Commercial Production and Royalty Protocol — Kiwifruit".
+    Linked phase: LAUNCH (also SCALE). Source: Annex 6.
+    Observational Protocol does not continue into Launch.
+
+    (1) Harvest actual — family F7 — NUMBER — unit kg — EVENT_BASED within 30 days of
+        harvest completion — used for Brand royalty.
+    (2) Packed kg meeting Capitolato — family F7 — NUMBER — unit kg — CALENDAR_FIXED
+        reported 15 January.
+
+SIGNED in Bologna on 15 March 2024.
+
+C.I.V. Consorzio Italiano Vivaisti soc. cons. a r.l. — Dr. Marco Bellini — Italy
+Agropro Iberia S.L. — Elena Vargas — Spain
+Vivaio Verde Autorizado S.A. — João Ferreira — Spain
+
+END OF DOCUMENT

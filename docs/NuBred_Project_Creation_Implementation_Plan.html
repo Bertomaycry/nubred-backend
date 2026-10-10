@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NuBred — AI Pipeline Overview</title>
+<style>
+  :root{
+    --green-900:#d8f3e4;
+    --green-700:#95d5b2;
+    --green-600:#52b788;
+    --green-500:#40916c;
+    --green-050:#1a2e24;
+    --ink:#e8ecef;
+    --ink-2:#b8c4cc;
+    --ink-3:#8494a0;
+    --line:#2f3d45;
+    --line-2:#263038;
+    --paper:#161b1f;
+    --paper-2:#111518;
+    --amber:#fbbf24;
+    --amber-bg:#2a2210;
+    --red:#f87171;
+    --red-bg:#2a1818;
+    --grey:#94a3b8;
+    --grey-bg:#1e2429;
+  }
+
+  *{box-sizing:border-box;}
+
+  html{-webkit-text-size-adjust:100%;}
+
+  body{
+    margin:0;
+    background:var(--paper-2);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .page{
+    max-width:920px;
+    margin:0 auto;
+    background:var(--paper);
+    padding:64px 72px 72px;
+    border-left:1px solid var(--line-2);
+    border-right:1px solid var(--line-2);
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    border-bottom:3px solid var(--green-600);
+    padding-bottom:26px;
+    margin-bottom:40px;
+  }
+  .eyebrow{
+    font-size:11.5px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    font-weight:700;
+    color:var(--green-600);
+    margin:0 0 12px;
+  }
+  h1{
+    font-size:33px;
+    line-height:1.2;
+    letter-spacing:-.02em;
+    margin:0 0 10px;
+    color:var(--green-900);
+    font-weight:700;
+  }
+  .lede{
+    font-size:17px;
+    color:var(--ink-2);
+    margin:0;
+    max-width:62ch;
+  }
+  .meta{
+    margin-top:22px;
+    font-size:13px;
+    color:var(--ink-3);
+    display:flex;
+    flex-wrap:wrap;
+    gap:26px;
+  }
+  .meta span b{color:var(--ink-2);font-weight:600;}
+
+  /* ---------- Sections ---------- */
+  section{margin:0 0 46px;}
+  h2{
+    font-size:13px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--green-700);
+    font-weight:700;
+    margin:0 0 18px;
+    padding-bottom:9px;
+    border-bottom:1px solid var(--line);
+  }
+  h3{
+    font-size:17px;
+    margin:0 0 8px;
+    color:var(--green-900);
+    font-weight:650;
+    letter-spacing:-.01em;
+  }
+  p{margin:0 0 14px;}
+  p:last-child{margin-bottom:0;}
+
+  /* ---------- Principle callout ---------- */
+  .principle{
+    background:var(--green-050);
+    border-left:4px solid var(--green-500);
+    border-radius:0 8px 8px 0;
+    padding:22px 26px;
+    margin:0 0 44px;
+  }
+  .principle p{
+    margin:0;
+    font-size:18px;
+    line-height:1.5;
+    color:var(--green-900);
+    font-weight:500;
+  }
+  .principle .label{
+    display:block;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-weight:700;
+    color:var(--green-600);
+    margin-bottom:9px;
+  }
+
+  /* ---------- Pipeline ---------- */
+  .stage{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:24px 26px 22px;
+    background:var(--paper);
+    position:relative;
+  }
+  .stage-head{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:6px;
+  }
+  .badge{
+    flex:0 0 auto;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:#fff;
+    background:var(--green-600);
+    padding:4px 10px;
+    border-radius:20px;
+    line-height:1.45;
+  }
+  .stage .role{
+    font-size:12.5px;
+    color:var(--ink-3);
+    margin:0 0 14px;
+    font-style:italic;
+  }
+  .connector{
+    height:34px;
+    position:relative;
+  }
+  .connector::before{
+    content:"";
+    position:absolute;
+    left:50%;
+    top:0;
+    bottom:9px;
+    width:2px;
+    margin-left:-1px;
+    background:var(--line);
+  }
+  .connector::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    bottom:0;
+    margin-left:-6px;
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-top:9px solid var(--line);
+  }
+
+  ul.detail{
+    margin:0;
+    padding:0;
+    list-style:none;
+  }
+  ul.detail li{
+    position:relative;
+    padding-left:18px;
+    margin-bottom:7px;
+    font-size:14.5px;
+    color:var(--ink-2);
+  }
+  ul.detail li:last-child{margin-bottom:0;}
+  ul.detail li::before{
+    content:"";
+    position:absolute;
+    left:2px;
+    top:9px;
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:var(--green-500);
+  }
+  ul.detail li b{color:var(--ink);font-weight:600;}
+
+  /* ---------- Parallel fan-out ---------- */
+  .fanout{
+    margin:16px 0 4px;
+    padding:16px 18px;
+    background:var(--paper-2);
+    border:1px dashed var(--line);
+    border-radius:8px;
+  }
+  .fanout .cap{
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    font-weight:700;
+    color:var(--ink-3);
+    margin-bottom:12px;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    font-size:13px;
+    font-weight:600;
+    color:var(--green-700);
+    background:var(--paper);
+    border:1px solid var(--green-500);
+    border-radius:6px;
+    padding:6px 12px;
+  }
+  .chip.derived{
+    color:var(--ink-3);
+    border-color:var(--line);
+    border-style:dashed;
+    font-weight:500;
+  }
+  .fanout .note{
+    font-size:13px;
+    color:var(--ink-3);
+    margin:12px 0 0;
+  }
+
+  /* ---------- Gate box ---------- */
+  .gate{
+    margin:16px 0 0;
+    padding:14px 18px;
+    border-left:3px solid var(--amber);
+    background:var(--amber-bg);
+    border-radius:0 6px 6px 0;
+    font-size:14px;
+    color:#e8c97a;
+  }
+  .gate b{color:#fbbf24;}
+
+  /* ---------- Confidence legend ---------- */
+  .legend{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
+    gap:12px;
+  }
+  .lg{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+    background:var(--paper);
+  }
+  .lg .name{
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .lg p{font-size:13.5px;color:var(--ink-2);margin:0;line-height:1.5;}
+  .c-ok .name{color:var(--green-600);}   .c-ok .dot{background:var(--green-600);}
+  .c-pv .name{color:var(--amber);}       .c-pv .dot{background:var(--amber);}
+  .c-cf .name{color:var(--red);}         .c-cf .dot{background:var(--red);}
+  .c-ms .name{color:var(--grey);}        .c-ms .dot{background:var(--grey);}
+
+  /* ---------- Guarantees ---------- */
+  .grid2{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:16px;
+  }
+  .card{
+    border:1px solid var(--line);
+    border-top:3px solid var(--green-500);
+    border-radius:8px;
+    padding:20px 22px;
+    background:var(--paper);
+  }
+  .card h3{font-size:15.5px;margin-bottom:7px;}
+  .card p{font-size:14px;color:var(--ink-2);margin:0;}
+
+  /* ---------- Table ---------- */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:14.5px;
+  }
+  th{
+    text-align:left;
+    font-size:11px;
+    letter-spacing:.11em;
+    text-transform:uppercase;
+    color:var(--ink-3);
+    font-weight:700;
+    padding:0 12px 10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  td{
+    padding:11px 12px 11px 0;
+    border-bottom:1px solid var(--line-2);
+    vertical-align:top;
+    color:var(--ink-2);
+  }
+  td:first-child{color:var(--ink);font-weight:500;width:56%;}
+  tr:last-child td{border-bottom:none;}
+
+  .pill{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    padding:3px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .p-done{background:var(--green-050);color:var(--green-600);}
+  .p-next{background:var(--amber-bg);color:var(--amber);}
+  .p-plan{background:var(--grey-bg);color:var(--grey);}
+
+  /* ---------- Footer ---------- */
+  footer{
+    margin-top:52px;
+    padding-top:22px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--ink-3);
+  }
+  footer p{margin:0 0 6px;}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:720px){
+    .page{padding:36px 24px 48px;border:none;}
+    h1{font-size:26px;}
+    .lede{font-size:16px;}
+    .principle p{font-size:16px;}
+    td:first-child{width:auto;}
+  }
+
+  /* ---------- Print / PDF ---------- */
+  @media print{
+    @page{margin:16mm 14mm;}
+    body{background:var(--paper-2);font-size:11pt;}
+    .page{
+      max-width:none;padding:0;border:none;background:var(--paper);
+    }
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .stage,.card,.lg,.principle,.fanout,.gate{break-inside:avoid;page-break-inside:avoid;}
+    section{break-inside:avoid-page;}
+    h2{break-after:avoid;}
+    footer{break-before:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <p class="eyebrow">NuBred Platform &middot; Technical Overview</p>
+    <h1>AI Pipeline for Project Creation</h1>
+    <p class="lede">How uploaded documents become a reviewed, confirmed agricultural project &mdash; and how the assistant supports the process before, during, and after creation.</p>
+  </header>
+
+  <div class="principle">
+    <span class="label">Governing principle</span>
+    <p>The AI never decides anything. It proposes structured data with a citation for every single field. A human confirms or corrects it &mdash; and only confirmed data becomes project truth.</p>
+  </div>
+
+  <section>
+    <h2>The pipeline at a glance</h2>
+    <p>Project creation moves through four stages. The first two are automated, the third is where the Variety Manager takes control, and the fourth begins once the project exists.</p>
+  </section>
+
+  <section>
+    <h2>Stage 1 &mdash; Document intake</h2>
+
+    <div class="stage">
+      <div class="stage-head">
+        <span class="badge">Stage 1</span>
+        <h3>Upload and prepare the documents</h3>
+      </div>
+      <p class="role">No AI is involved at this stage &mdash; and no AI cost is incurred by uploading.</p>
+      <ul class="detail">
+        <li>The Variety Manager uploads contracts, Capitolato, annexes, correspondence and spreadsheets in their original formats (PDF, Word, Excel, CSV, email).</li>
+        <li>Files are transferred <b>directly into private encrypted storage</b>. They never pass through the application server, and they are never given a public address.</li>
+        <li>Each document is verified on arrival, then converted to text <b>page by page</b>, preserving the page number and position of every passage.</li>
+        <li>This page-level index is what makes precise source citation possible in every later stage.</li>
+      </ul>
+    </div>
+
+    <div class="connector"></div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <span class="badge">Stage 2</span>
+        <h3>AI extraction produces a draft project</h3>
+      </div>
+      <p class="role">The AI reads the documents once and proposes a complete first draft.</p>
+      <ul class="detail">
+        <li>Each section of the project is extracted by a <b>separate, specialised AI request</b>, so instructions stay focused and results stay comparable.</li>
+        <li>Every request combines four inputs: NuBred's <b>domain glossary</b>, the <b>phase framework</b>, the <b>standard clause library</b>, and the section's own extraction rules &mdash; together with the document text.</li>
+        <li>The AI is <b>constrained to a fixed output structure</b> rather than asked for free text. It cannot return prose, and it cannot invent extra fields.</li>
+        <li>Every returned value is <b>validated a second time</b> before storage. A malformed result fails visibly and is retried, instead of quietly corrupting a project.</li>
+      </ul>
+
+      <div class="fanout">
+        <p class="cap">Extracted in parallel &mdash; one AI request each</p>
+        <div class="chips">
+          <span class="chip">Contracts</span>
+          <span class="chip">Genotype</span>
+          <span class="chip">Phases</span>
+          <span class="chip">Protocols</span>
+          <span class="chip derived">Chronology &mdash; derived from the four above</span>
+        </div>
+        <p class="note">Chronology reads no documents. It assembles a timeline from what the other four sections found, so the project history is always consistent with its own data.</p>
+      </div>
+
+      <ul class="detail" style="margin-top:16px">
+        <li>For every field, the system records the <b>source document, page number and the exact quoted passage</b> it came from.</li>
+        <li>For every field, the system also records a <b>confidence level</b> &mdash; including honest admissions of conflict or absence.</li>
+      </ul>
+
+      <div class="gate">
+        <b>Nothing here is treated as fact.</b> The result of this stage is a <i>draft</i>. No value has entered the project record yet.
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <span class="badge">Stage 3</span>
+        <h3>Human review, with the assistant alongside</h3>
+      </div>
+      <p class="role">The Variety Manager works through the five sections in order. This is where the assistant is used during creation.</p>
+      <ul class="detail">
+        <li><b>&ldquo;Why?&rdquo; on any field</b> instantly shows the source document, the page, and the exact sentence the value was taken from. Nothing is a black box.</li>
+        <li><b>Conflicting values open a conversation.</b> The assistant states the disagreement plainly &mdash; &ldquo;the supply agreement says 60 days, the annex says 30&rdquo; &mdash; and asks which applies.</li>
+        <li><b>Missing values are requested, not guessed.</b> The Variety Manager can supply them in the conversation or enter them directly.</li>
+        <li><b>Plain-language corrections are supported.</b> An instruction such as &ldquo;the delivery window is 30 days, not 60&rdquo; updates the field.</li>
+        <li>Every change is recorded with the <b>previous value, the new value, who made it, why, and whether it came from the assistant or was entered manually</b>.</li>
+      </ul>
+
+      <div class="gate">
+        <b>Confirmation is gated.</b> A section with unresolved blocking issues cannot be confirmed, and that rule is enforced by the server &mdash; not merely hidden in the interface. On confirmation, a locked copy of exactly what was approved is stored permanently, and the data enters the live project record.
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <span class="badge">Stage 4</span>
+        <h3>Project assistant, after creation</h3>
+      </div>
+      <p class="role">Proposed design &mdash; not yet built. Included here for agreement on the approach.</p>
+      <ul class="detail">
+        <li>Once the project exists, the assistant answers questions about it: <i>&ldquo;what are our obligations to the nursery in Phase 2?&rdquo;</i>, <i>&ldquo;which protocol parameters are eliminatory?&rdquo;</i></li>
+        <li>Crucially, it answers from the <b>confirmed project record</b> &mdash; the data a human has already approved &mdash; and not by re-reading the original documents.</li>
+        <li>This matters: re-reading the source documents would reintroduce exactly the uncertainty that the review stage existed to remove, and could contradict what was approved.</li>
+        <li>Answers carry the <b>same citations</b> produced during extraction, so the assistant can point to the originating clause and page.</li>
+        <li>The assistant is <b>read-only</b>. Changing approved project data always goes back through the recorded review-and-confirm process, so the audit trail is never bypassed.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>How the AI reports confidence</h2>
+    <p>Every extracted field carries one of four states. Conflict and absence are treated as legitimate, expected outcomes &mdash; the system is designed to admit uncertainty rather than guess.</p>
+    <div class="legend">
+      <div class="lg c-ok">
+        <div class="name"><span class="dot"></span>Confirmed</div>
+        <p>Taken from a signed document or otherwise definitive source.</p>
+      </div>
+      <div class="lg c-pv">
+        <div class="name"><span class="dot"></span>Provisional</div>
+        <p>Taken from a non-binding source such as an email, draft or meeting note.</p>
+      </div>
+      <div class="lg c-cf">
+        <div class="name"><span class="dot"></span>Conflicting</div>
+        <p>Two documents disagree. Raised for resolution; cannot be silently averaged.</p>
+      </div>
+      <div class="lg c-ms">
+        <div class="name"><span class="dot"></span>Missing</div>
+        <p>A required value was not found in any document. Flagged, never invented.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Four guarantees built into the system</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Nothing is accepted automatically</h3>
+        <p>AI output is held separately from the project record. Only an explicit human confirmation moves a value into the live project.</p>
+      </div>
+      <div class="card">
+        <h3>Every field is traceable to a source</h3>
+        <p>Each value stores its originating document, page number and verbatim quotation, viewable at any time.</p>
+      </div>
+      <div class="card">
+        <h3>Every change is attributed</h3>
+        <p>Who changed what, from which value to which value, when, why, and whether by hand or through the assistant.</p>
+      </div>
+      <div class="card">
+        <h3>Every AI version is recorded</h3>
+        <p>Each extraction stores a cryptographic fingerprint of the exact instructions used and the model that ran them &mdash; so any value can be explained months later.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Extensibility</h2>
+    <p>The five sections are self-contained. Each carries its own data structure, its own validation rules and its own AI instructions, registered in one central place. Adding a further section &mdash; as anticipated in the roadmap &mdash; means adding one new self-contained unit; it does not require changes to the extraction engine, the review process or the assistant.</p>
+  </section>
+
+  <section>
+    <h2>Data handling and confidentiality</h2>
+    <p>Project documents are held in a private, access-controlled store. They are reachable only through short-lived, individually issued links, and are never publicly addressable. Access is scoped so that a user of one organisation cannot reach another organisation's projects, and this is enforced at the data layer rather than in the interface.</p>
+    <p>All AI access is routed through a single internal interface, which means the underlying model provider can be changed &mdash; or, for enterprise clients with their own data-processing requirements, replaced with the client's own provider account &mdash; without redesigning the platform. Production processing will run on commercial provider terms under which submitted content is not used to train models.</p>
+  </section>
+
+  <section>
+    <h2>Current implementation status</h2>
+    <table>
+      <thead>
+        <tr><th>Component</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Data model, audit and provenance records</td><td><span class="pill p-done">Complete</span></td></tr>
+        <tr><td>Document upload, private storage, page-level text extraction (5 formats)</td><td><span class="pill p-done">Complete</span></td></tr>
+        <tr><td>Five section definitions: data structures, validation rules, AI instructions</td><td><span class="pill p-done">Complete</span></td></tr>
+        <tr><td>AI instruction assembly with version fingerprinting</td><td><span class="pill p-done">Complete</span></td></tr>
+        <tr><td>Model-provider interface (provider-independent)</td><td><span class="pill p-done">Complete</span></td></tr>
+        <tr><td>Extraction engine and background processing queue</td><td><span class="pill p-next">In progress</span></td></tr>
+        <tr><td>Review, &ldquo;Why?&rdquo; evidence and confirmation interfaces</td><td><span class="pill p-next">In progress</span></td></tr>
+        <tr><td>Section assistant for conflict resolution (Stage 3)</td><td><span class="pill p-plan">Planned</span></td></tr>
+        <tr><td>Project assistant after creation (Stage 4)</td><td><span class="pill p-plan">Proposed</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    <p>Stage 4 describes a proposed design and is presented for agreement before implementation.</p>
+  </footer>
+
+</div>
+</body>
+</html>

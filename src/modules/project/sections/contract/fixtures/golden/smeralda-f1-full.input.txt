@@ -1,0 +1,809 @@
+EXCLUSIVE VARIETY LICENCE AGREEMENT
+(Full Commercial Licence — Propagation, Cultivation and Commercialisation)
+
+Contract reference: NBR-LIC-F1-2024-014
+Language of this Agreement: English. English text prevails.
+Date of signature and Effective Date: 15 March 2024
+Place of signature: Bologna, Italy
+
+This Exclusive Variety Licence Agreement (the "Agreement") is entered into on 15 March 2024
+(the "Effective Date") by and between:
+
+(1) C.I.V. Consorzio Italiano Vivaisti soc. cons. a r.l., with registered office at Via Romea 116,
+44020 San Giuseppe di Comacchio (FE), Italy, VAT IT01234567890 (the "Licensor", "Breeder"
+and "Principal"); and
+
+(2) Agropro Iberia S.L., with registered office at Calle de Alcalá 480, 28027 Madrid, Spain,
+CIF B-88112233 (the "Licensee" and "Independent Variety Manager" / "IVM"); and
+
+(3) Vivaio Verde Autorizado S.A., with registered office at Camino de la Huerta 12, 46113 Valencia,
+Spain, CIF A-44556677 (the "Authorised Nursery" and "Nursery"), for the limited purposes of
+Articles 8, 9 and Annex 4.
+
+Each a "Party" and together the "Parties".
+
+WHEREAS:
+
+A. The Licensor is the breeder and holder of Community Plant Variety Rights in certain yellow-flesh
+kiwifruit (Actinidia chinensis) genotypes, commercially developed under the SMERALDA programme.
+
+B. The Licensee wishes to obtain an exclusive mandate to evaluate, propagate, cultivate and
+commercialise the Licensed Varieties in the Licensed Territory, including use of the Licensed
+Trademark, subject to Minimum Quantities and the Production Plan.
+
+C. The economic function of this Agreement is a full commercial (terminal) licence: the Licensee
+bears commercial risk in the Licensed Territory; the Licensor collects royalties (PBR royalty
+embedded in plant price plus Brand royalty on packed fruit); the Licensee may not sell plants
+or fruit outside the authorised channels.
+
+D. The project shall proceed through four development phases: Evaluation Period (Trial),
+Semi-Commercial Validation (Pilot), Commercial Introduction (Launch) and Full Commercial
+Expansion (Scale). No commercial sale of fruit is permitted during Trial or Pilot.
+
+E. The Parties have agreed Minimum Licensing Conditions, Option Rights on additional New Plant
+Varieties, a Right of First Refusal, and the Quality Specification (Capitolato) process set out herein.
+
+NOW, THEREFORE, the Parties agree as follows.
+
+================================================================================
+ARTICLE 1 — DEFINITIONS
+================================================================================
+
+1.1 "Licensed Varieties" means the genotypes listed in Annex 1 (IP Schedule), currently:
+    (a) Smeralda — breeder code CVRI-08 — CPVO grant 44847;
+    (b) Dorì Gold — breeder code CVRI-14A — CPVO grant 45102;
+    (c) NPV-Yellow-21 — breeder code CIV/21-Y — CPVO application pending, filing A2023-1188.
+    Species for all Licensed Varieties: Actinidia chinensis (kiwifruit / yellow kiwi).
+
+1.2 "Licensed Trademark" means the word and device mark "Dorì", EUIPO registration 018012345,
+    covering the European Union, licensed under this Agreement (the trademark licence is contained
+    in this Agreement, not in a separate TM licence). Territory of TM registration: European Union.
+
+1.3 "Production Territory" means Spain (mainland), Portugal and the Balearic Islands, being the
+    geographic territory where propagation and production (cultivation) are authorised.
+
+1.4 "Commercialisation Territory" means the European Union plus the Middle East (United Arab
+    Emirates, Saudi Arabia, Qatar, Israel), being the geographic territory where fruit and plants
+    of the Licensed Varieties may be commercialised.
+
+1.5 "Release Date" means 1 September 2024, being the date notified in writing by the Licensor
+    on which propagating material of Smeralda and Dorì Gold was released to the Licensee for
+    planting in the Evaluation Period.
+
+1.6 "Evaluation Period" means four (4) growing seasons from the Release Date (1 September 2024).
+    The Evaluation Period ends on 31 August 2028 unless extended by written agreement.
+
+1.7 "Capitolato" or "Quality Specification" means the minimum fruit quality standards that must
+    be met for Brand royalty payment, as defined in Annex 7. The Capitolato must be defined
+    before Pilot closes. Launch is blocked until the Capitolato is defined.
+
+1.8 "Authorised Nursery" means Vivaio Verde Autorizado S.A. The Licensee may change nursery
+    only with the Licensor's prior written consent and execution of an Addendum to Annex 4.
+
+1.9 "Essentially Derived Variety" or "EDV" has the meaning given in the UPOV Convention.
+
+================================================================================
+ARTICLE 2 — OBJECT AND CONTRACT FAMILY
+================================================================================
+
+2.1 This Agreement is a Full Commercial Licence. The Licensor grants the Licensee the right to
+    propagate, cultivate and commercialise the Licensed Varieties together with the Licensed
+    Trademark, for the term set out in Article 16, in the territories set out in Article 5.
+
+2.2 Primary economic function: Terminal Licence (end-point commercial licence). Secondary
+    function during the Evaluation Period: Evaluation (VCU trials at Licensee's cost).
+
+2.3 The Licensee collects fruit from Licensed Growers and supplies Authorised Distributors.
+    The Licensor collects: (i) PBR royalty embedded in the Finished Plant price; (ii) Brand
+    royalty on packed fruit meeting the Capitolato.
+
+================================================================================
+ARTICLE 3 — PHASE STRUCTURE
+================================================================================
+
+3.1 The project starts at Trial. It may later advance to Pilot, Launch and Scale. A project may
+    start at any phase; in this Agreement the Parties have chosen to start at Trial.
+
+3.2 PHASE 1 — EVALUATION PERIOD (maps to NuBred TRIAL — Experimental)
+
+    Name as used in this Agreement: "Evaluation Period" / "VCU Phase".
+    Objective: Screen the Licensed Varieties (including NPV-Yellow-21) with few plants per
+    Selection to identify commercial potential. Conduct VCU evaluation. No commercial activity.
+    Duration: 4 growing seasons from the Release Date (1 September 2024).
+    Start trigger: Release Date notified by Licensor (1 September 2024).
+    Location: Trial sites at Lleida (Catalonia, Spain) and Vale do Tejo (Portugal).
+    Plant count: 120 plants in total for Trial (40 plants per genotype).
+    Hectares: 0.12 ha.
+    Gate criteria to advance from Trial to Pilot:
+      (a) all Observational Protocol observations for Trial completed per Annex 5;
+      (b) Variety Manager (Licensor) Promote / Repeat / Discard decision per genotype;
+      (c) annual VCU report accepted by Licensor.
+    Capitolato defined: not applicable at Trial (null for this phase).
+
+    Genotype decisions recorded at the Trial/Pilot gate meeting of 12 October 2026:
+      - Smeralda: PROMOTE to Pilot. Notes: VCU positive; Brix and firmness above threshold.
+      - Dorì Gold: PROMOTE to Pilot. Notes: colour and shelf life acceptable.
+      - NPV-Yellow-21: REPEAT Trial for one additional growing season. Notes: insufficient
+        fruit-set data; PSA screening incomplete. Decision date: 12 October 2026.
+
+3.3 PHASE 2 — SEMI-COMMERCIAL VALIDATION (maps to NuBred PILOT — Experimental)
+
+    Name as used in this Agreement: "Semi-Commercial Validation" / "Pilot Phase".
+    Objective: Validate Smeralda and Dorì Gold at semi-commercial scale (approximately 0.5–1 ha)
+    and produce a first production forecast. No commercial sale of fruit. Brand royalty does
+    not apply. Observational Protocol continues.
+    Duration: 2 growing seasons, starting the season after Trial gate confirmation.
+    Start trigger: written VM confirmation of Trial gate passage (target 1 March 2027).
+    Location: Pilot orchards in Lleida (Spain) and Ribatejo (Portugal).
+    Plant count: 1,600 plants (800 Smeralda, 800 Dorì Gold).
+    Hectares: 0.80 ha.
+    Gate criteria to advance from Pilot to Launch:
+      (a) all Pilot protocol observations completed;
+      (b) production forecast validated by both Parties;
+      (c) Capitolato (Quality Specification) defined and signed as Annex 7 — HARD GATE:
+          Launch is blocked until the Capitolato is defined;
+      (d) Variety Manager advance confirmation.
+    Capitolato defined: YES — Annex 7 was signed on 20 January 2028.
+    Genotype decisions at Pilot close (15 February 2028):
+      - Smeralda: PROMOTE to Launch. Notes: Capitolato met in 2027 harvest sample.
+      - Dorì Gold: PROMOTE to Launch. Notes: pack-out 72%.
+      Decision date: 15 February 2028.
+
+3.4 PHASE 3 — COMMERCIAL INTRODUCTION (maps to NuBred LAUNCH — Commercial)
+
+    Name as used in this Agreement: "Commercial Introduction" / "Market Introduction".
+    Objective: First commercial season. PBR and Brand royalties become active. Licensee
+    plants according to Year-1 Production Plan. Fruit supplied only to Authorised Distributors.
+    Duration: 1 commercial season (2028/2029), then eligible for Scale.
+    Start trigger: Pilot gate confirmation AND Capitolato in force (target 1 March 2028).
+    Location: Production Territory (Spain, Portugal, Balearic Islands).
+    Plant count: 10,000 plants in Launch year (Year 1 Minimum Quantity).
+    Hectares: 5.0 ha.
+    Gate criteria to advance from Launch to Scale:
+      (a) production forecast validated for the Launch season;
+      (b) royalty reporting complete (commercialisation report + royalty payment);
+      (c) Variety Manager advance confirmation.
+    Capitolato defined: not a Launch-specific gate (already defined at Pilot).
+    Commercial Protocol (Annex 6) applies from Launch. Observational Protocol does not continue.
+
+3.5 PHASE 4 — FULL COMMERCIAL EXPANSION (maps to NuBred SCALE — Commercial)
+
+    Name as used in this Agreement: "Full Commercial Expansion" / "Market Phase".
+    Objective: Expansion per Production Plan. Full royalty flows. Delta EBITDA calculation
+    active under the Advanced Commercial Protocol.
+    Duration: until expiry of CPVO PBR in EU territory (expected 31 December 2056), subject
+    to renewal under Article 16.
+    Start trigger: Launch gate confirmation (target 1 March 2029).
+    Location: Production Territory, with commercialisation in Commercialisation Territory.
+    Plant count: 50,000 plants from Year 3 onwards (steady-state Minimum Quantity).
+    Hectares: 25.0 ha at steady state.
+    Gate criteria: ongoing production forecast cycle; royalty reporting each season.
+
+================================================================================
+ARTICLE 4 — VARIETIES AND INTELLECTUAL PROPERTY
+================================================================================
+
+4.1 Annex 1 (IP Schedule) is incorporated. Summary:
+
+    Variety 1 — SMERALDA
+      Commercial name: Smeralda
+      Breeder code: CVRI-08
+      Species: Actinidia chinensis (kiwifruit)
+      Development status: VARIETY (protected)
+      PBR status: PROTECTED
+      PBR office: CPVO
+      PBR number: CPVO 44847
+      Grant date: 18 June 2022
+      Expected PBR expiry in EU: 31 December 2056
+      Number of plants in planting plan at Scale: 30,000
+      Linked phases: TRIAL, PILOT, LAUNCH, SCALE
+      Notes: Listed in Annex 1 — full details in IP schedule. Yellow flesh. Club variety.
+
+    Variety 2 — DORÌ GOLD
+      Commercial name: Dorì Gold
+      Breeder code: CVRI-14A
+      Species: Actinidia chinensis (kiwifruit)
+      Development status: VARIETY (protected)
+      PBR status: PROTECTED
+      PBR office: CPVO
+      PBR number: CPVO 45102
+      Grant date: 4 November 2023
+      Number of plants in planting plan at Scale: 18,000
+      Linked phases: TRIAL, PILOT, LAUNCH, SCALE
+      Notes: Commercial name used with Licensed Trademark "Dorì".
+
+    Variety 3 — NPV-YELLOW-21
+      Commercial name: (none yet — New Plant Variety)
+      Breeder code: CIV/21-Y
+      Species: Actinidia chinensis (kiwifruit)
+      Development status: SELECTION (no IP protection granted)
+      PBR status: APPLICATION_PENDING
+      PBR office: CPVO
+      PBR number: A2023-1188 (filing reference)
+      Filing date: 9 May 2023
+      Number of plants: 40 (Trial only)
+      Linked phases: TRIAL
+      Notes: Experimental genotype / trial material. Option Right applies (Annex 3).
+             If CPVO grant is issued, status becomes VARIETY.
+
+4.2 Trademark. The Licensed Trademark "Dorì" (EUIPO 018012345, European Union) is included
+    in this contract. Trademark Use Policy (TUP) is Annex 8. The Licensee shall apply the
+    Trademark only in accordance with the TUP. Brand royalty is active from Launch.
+
+4.3 EDV clause. An EDV clause exists. EDVs, mutations and off-types discovered by the Licensee,
+    the Authorised Nursery or any Licensed Grower belong exclusively to C.I.V. Consorzio Italiano
+    Vivaisti soc. cons. a r.l. Immediate written notification and tissue sample submission to
+    the Licensor is required within 15 days of discovery. The discovering party shall not file
+    any PBR or patent on such EDV. Notification is required.
+
+4.4 Background IP (pre-existing genotypes of each Party) remains exclusively owned by that Party.
+    No licence is granted over Background IP except as expressly set out for the Licensed Varieties.
+
+================================================================================
+ARTICLE 5 — TERRITORIES AND EXCLUSIVITY
+================================================================================
+
+5.1 Production territory: Spain (mainland), Portugal and the Balearic Islands.
+
+5.2 Commercialisation territory: European Union + Middle East (UAE, Saudi Arabia, Qatar, Israel).
+
+5.3 Exclusivity regime:
+    Propagation: non-exclusive (Licensor may authorise additional nurseries in the Production
+    Territory upon 60 days' written notice).
+    Cultivation: exclusive to Licensee in the Production Territory, subject to Minimum Quantities.
+    Commercialisation: exclusive to Licensee in the Commercialisation Territory, subject to
+    Minimum Quantities.
+    Trademark use: exclusive in the Commercialisation Territory, subject to TUP compliance.
+
+================================================================================
+ARTICLE 6 — RIGHTS GRANTED
+================================================================================
+
+6.1 PROPAGATION — non-exclusive in the Production Territory. Condition: must be exercised
+    solely through the Authorised Nursery. The Licensee shall not maintain Mother Plants
+    except as authorised in Annex 4 (maximum 200 Mother Plants, ratio 1:250 Finished Plants).
+
+6.2 CULTIVATION — exclusive in the Production Territory, subject to Minimum Quantities.
+    Condition: plant only on georeferenced parcels listed in Annex 2. New parcels require
+    a formal Addendum.
+
+6.3 COMMERCIALISATION — exclusive in the Commercialisation Territory, subject to Minimum
+    Quantities. Condition: entire harvest supplied to Authorised Distributors listed in Annex 9.
+    Fruit may not be sold outside the Commercialisation Territory.
+
+6.4 TRADEMARK_USE — exclusive in the Commercialisation Territory. Condition: co-branding and
+    any Club Strategy with the Licensee's own mark require prior written approval of the Licensor.
+    TUP (Annex 8) applies.
+
+6.5 VCU_EVALUATION — non-exclusive right during the Evaluation Period only, at Licensee's cost.
+    No sale or distribution of plants or fruit during Trial or Pilot.
+
+6.6 The Licensee shall not grant sub-licences without the Licensor's prior written authorisation.
+
+================================================================================
+ARTICLE 7 — MINIMUM QUANTITIES
+================================================================================
+
+7.1 Minimum quantities per season (Finished Plants planted, unit: plants):
+    Year 1 (Launch 2028/29): 10,000 plants.
+    Year 2 (Scale 2029/30): 25,000 plants.
+    Year 3 and each subsequent season: 50,000 plants.
+
+7.2 Tolerance: minus fifteen percent (−15%) below the applicable Minimum Quantity is permitted
+    without triggering Step 1 enforcement.
+
+7.3 Recovery years: two (2) consecutive seasons to recover before enforcement escalates from
+    Step 1 to Step 2.
+
+7.4 Enforcement cascade:
+    Step 1: lump-sum indemnity calculated per the formula in Annex 6 (shortfall plants × €2.50).
+    Step 2 (if repeated after recovery window): revocation of exclusivity for commercialisation
+    in the Commercialisation Territory.
+    Step 3 (if persisted a further season): termination under Article 17.2(b).
+
+7.5 Maximum Quantities: 80,000 plants per season without written authorisation. Exceeding
+    Maximum Quantities without authorisation is a material breach.
+
+================================================================================
+ARTICLE 8 — FINANCIAL TERMS
+================================================================================
+
+8.1 Entry fee: €200,000 (two hundred thousand euro), payable within 30 days of signing
+    (due date 14 April 2024). Partially refundable if CPVO PBR for Smeralda (CPVO 44847)
+    is cancelled or finally rejected on opposition; refund capped at 50% of the entry fee.
+
+8.2 Royalty structure:
+    (a) PBR royalty: embedded in the Finished Plant price. €28.00 per 1,000 plants, invoiced
+        by the Authorised Nursery to the Licensee as part of plant price. Not invoiced separately.
+    (b) Brand royalty: €0.12 per kg of packed fruit meeting the Capitolato, invoiced separately
+        by the Licensor after the commercialisation report. Applies from Launch only.
+    (c) No royalty on fruit during Trial or Pilot.
+
+8.3 Payment calendar:
+    Commercialisation report: 15 January each year for the preceding season.
+    Royalty payment (Brand royalty): 28 February each year.
+    Late payment: 5% annual interest, calculated daily.
+    Mother plant census: 31 March each year.
+    Harvest declaration: within 30 days of harvest completion.
+
+8.4 During the Evaluation Period the Licensee bears all trial, importation, quarantine and
+    VCU costs at its own risk. No trial-phase fee is payable to the Licensor.
+
+================================================================================
+ARTICLE 9 — OPTION RIGHTS AND ROFR
+================================================================================
+
+9.1 Optioned varieties (true Option Right, not merely ROFR): NPV-Yellow-21 (CIV/21-Y) and
+    any additional New Plant Variety notified by the Licensor in writing during the Evaluation
+    Period and listed in an update to Annex 3.
+
+9.2 Minimum Licensing Conditions (MLC) pre-agreed in Annex 3:
+    Royalty: same structure as Article 8.2 (PBR €28/1,000 plants embedded; Brand €0.12/kg).
+    Exclusivity: exclusive commercialisation in Commercialisation Territory, subject to MQ.
+    Territory: same as Articles 5.1 and 5.2.
+    Minimum Quantities: Year 1 5,000 plants; Year 2 12,000; Year 3+ 25,000 for optioned NPVs.
+
+9.3 Exercise window: sixty (60) days from the end of the Evaluation Period (i.e. 60 days from
+    31 August 2028). Non-exercise constitutes an irrevocable waiver of cost reimbursement claims
+    in respect of that NPV.
+
+9.4 Right of First Refusal (ROFR): if the Licensor licences a variety not selected by the
+    Licensee to a third party in the Production Territory, the Licensee shall receive
+    reimbursement of documented VCU costs for that variety, capped at €40,000 per NPV,
+    payable within 90 days of the third-party licence signature (Article 9.4 / Annex 3).
+
+9.5 Exclusive Negotiation Period: six (6) months from Licensee's written selection notice
+    of an NPV. During this period the Licensor shall not negotiate with third parties in
+    the Licensed Territory in respect of that NPV.
+
+================================================================================
+ARTICLE 10 — REPORTING OBLIGATIONS
+================================================================================
+
+10.1 Mother plant census — deadline 31 March each year — content: number, location (GPS),
+     variety, health certificates, authorised ratio vs Finished Plants.
+
+10.2 VCU annual report — deadline 30 November each year during Trial and Pilot — content:
+     phenology, fruit quality (Brix, firmness, colour, weight), production, phytosanitary
+     status, Promote/Repeat/Discard recommendation per genotype.
+
+10.3 Harvest declaration — within 30 days of harvest completion — content: kg per variety,
+     pack-out %, calibre distribution, destination (Authorised Distributor).
+
+10.4 Commercialisation report — 15 January each year — content: packed kg, Brand royalty
+     calculation, territories of sale, returns.
+
+10.5 Importation and quarantine report — within 15 days of each shipment during Phase 1
+     (importation + quarantine) — content: phytosanitary certificates, quantities, lot IDs.
+
+10.6 Propagation census — 30 June and 31 December each year — content: cuttings taken,
+     plants in nursery, plants sold/delivered, plants destroyed.
+
+10.7 Destruction census — within 30 days of any destruction event — content: plant count,
+     reason, supervisor, photographic record.
+
+================================================================================
+ARTICLE 11 — IMPORTATION, QUARANTINE AND CERTIFICATION
+================================================================================
+
+11.1 Phase 1 scope (pre-Release): Licensee shall manage importation and post-entry quarantine
+     of propagating material in Spain. Quarantine start: 1 April 2024. Quarantine certification
+     received: 20 August 2024.
+
+11.2 Plant certification: all Finished Plants shall be certified CAC or equivalent except
+     where Annex 4 authorises an exception for Trial material of NPV-Yellow-21.
+
+11.3 Unsold plants: the Licensee and Authorised Nursery shall destroy unsold or unauthorised
+     plants within 30 days of season close, under Licensor supervision if requested.
+
+================================================================================
+ARTICLE 12 — QUALITY SPECIFICATION (CAPITOLATO)
+================================================================================
+
+12.1 The Capitolato is defined in Annex 7, signed 20 January 2028. Launch is blocked until
+     the Capitolato is defined. Brand royalty is payable only on fruit meeting:
+
+     Soluble solids (Brix): ≥ 15.5 °Brix at harvest (Quantitative Absolute).
+     Firmness: ≥ 6.0 kg/0.5cm² at packing (Quantitative Absolute).
+     Flesh colour: yellow class ≥ 6 on 1–8 UPOV colour chart (UPOV Qualitative).
+     Average fruit weight: 90–130 g.
+     Pack-out: ≥ 70% Class I.
+     No quarantine pathogen detected (Boolean eliminatory — PSA / Pseudomonas syringae pv.
+     actinidiae: zero tolerance).
+
+================================================================================
+ARTICLE 13 — OBSERVATIONAL PROTOCOL (TRIAL AND PILOT)
+================================================================================
+
+13.1 Protocol name: "VCU Evaluation Protocol — Kiwifruit (Observational)".
+     Protocol type: OBSERVATIONAL.
+     Linked phase: TRIAL (also governs PILOT with the same parameter set; extract as
+     OBSERVATIONAL linked to TRIAL / PILOT as applicable — two observational entries may
+     be recorded, one per phase, using this Annex 5 source).
+     Source document: this Agreement — Annex 5 "VCU Evaluation Protocol — Kiwifruit".
+     Objective: Produce a trial report and a Promote / Repeat / Discard decision per genotype.
+
+13.2 Parameters (Annex 5). Extract each of the following.
+
+     (1) Plant vigour
+         Original name: Tree vigour / vigour score
+         NuBred standard name: Plant Vigour
+         Family F1 — Plant Characteristics. Level: SPECIES_STANDARD.
+         Input type: SCALE. Scale min 1, scale max 9, polarity HIGHER_BETTER.
+         How to measure: Visual assessment on 30 plants per plot per UPOV TG/13/10 descriptor 16.
+         Frequency type: CALENDAR_FIXED. Frequency value: 3× per season (fruit set, 60 days
+         pre-harvest, harvest). Window: BBCH 71–89. Sample size: 30 plants per genotype.
+         Threshold: UPOV Qualitative: class ≥ 5 for vigour. Eliminatory level: L2.
+
+     (2) BBCH phenology
+         Name: BBCH stage
+         Family F1. Level: UNIVERSAL. Input type: OPTION (BBCH stages).
+         How to measure: Record first flowering, full bloom, fruit set, first harvest, last harvest.
+         Frequency: EVENT_BASED — per BBCH stage transition.
+         Window: BBCH 60–89. Sample: 10 plants per genotype.
+         Threshold: none. Eliminatory level: null.
+         Related dates: first flowering DATE; first harvest DATE; last harvest DATE
+         (extract flowering and harvest dates as DATE parameters if listed separately:
+         "Date of first flowering", "Date of first harvest", "Date of last harvest",
+         input_type DATE, family F1, EVENT_BASED, per occurrence).
+
+     (3) Soluble solids content
+         Original name: Soluble solids content
+         NuBred standard name: Brix
+         Family F2 — Fruit Quality. Level: SPECIES_STANDARD.
+         Input type: NUMBER. Unit: °Brix.
+         How to measure: Refractometer on juice extracted from min 5 fruits.
+         Frequency: EVENT_BASED — Per harvest event.
+         Window: Within 7 days of commercial harvest. Sample: 30 fruit per plot.
+         Threshold: Quantitative Absolute: ≥15.5°Brix (Pilot/Launch Capitolato);
+         Trial screening threshold ≥14.0°Brix. Eliminatory level: L2.
+
+     (4) Firmness
+         Name: Flesh firmness
+         Family F2. Level: SPECIES_STANDARD.
+         Input type: NUMBER. Unit: kg/0.5cm².
+         How to measure: Penetrometer with 0.5cm² tip — min 10 fruits.
+         Frequency: EVENT_BASED — Per harvest event.
+         Sample: 30 fruit per plot.
+         Threshold: Quantitative Absolute: ≥6.0 kg/0.5cm² at packing. Eliminatory: L2.
+
+     (5) Fruit weight
+         Name: Average fruit weight
+         Family F2. Input type: NUMBER. Unit: g.
+         How to measure: Mean of 50 fruits per plot, calibrated scale.
+         Frequency: EVENT_BASED — Per harvest event. Sample: min 50 fruits per sample.
+         Threshold: Quantitative Absolute: 90–130 g. Eliminatory: L3 (project-custom band).
+
+     (6) Organoleptic score
+         Name: Taste / organoleptic
+         Family F2. Input type: SCALE. Scale min 1, scale max 5, polarity HIGHER_BETTER.
+         How to measure: Trained panel, 8 tasters, blind coded samples.
+         Frequency: PHASE_GATE — required before Promote from Pilot.
+         Sample: 20 fruit per genotype.
+         Threshold: UPOV Qualitative: mean ≥ 3.5. Eliminatory: L3.
+
+     (7) Yield
+         Original name: Production per plant
+         NuBred standard name: Production
+         Family F3. Input type: NUMBER. Unit: kg/plant (also record kg/ha).
+         How to measure: All fruit harvested from 10 marked plants per genotype, weighed.
+         Frequency: EVENT_BASED — Per harvest event.
+         Threshold: Quantitative Relative: ≥15% above Benchmark Hayward at same site
+         from Pilot year 2. Eliminatory: L3.
+
+     (8) Calibre distribution
+         Name: Calibre distribution
+         Family F3. Input type: DISTRIBUTION (histogram % per size class summing to 100%).
+         Classes: <80g / 80–99g / 100–119g / 120–139g / ≥140g.
+         Frequency: EVENT_BASED — Per harvest event. Sample: min 50 fruits.
+         Threshold: none. Eliminatory: null.
+
+     (9) Pack-out percentage
+         Name: Pack-out %
+         Family F3. Input type: NUMBER. Unit: %.
+         Frequency: EVENT_BASED — Per harvest. Threshold: ≥70% Class I from Pilot.
+         Eliminatory: L3.
+
+     (10) PSA / bacterial canker
+          Original name: Pseudomonas syringae pv. actinidiae (Psa)
+          Family F4 — Phytosanitary. Level: UNIVERSAL.
+          Input type: BOOLEAN.
+          How to measure: Visual plus laboratory PCR on suspect tissue. Zero tolerance.
+          Frequency: CALENDAR_FIXED — Weekly during active season; also ON_DEMAND for incidents.
+          Threshold: Boolean eliminatory: No quarantine pathogen detected.
+          Eliminatory level: L1 (universal — no VM override; PSA for yellow kiwi).
+
+     (11) Botrytis / storage rot
+          Name: Botrytis incidence
+          Family F4. Input type: NUMBER. Unit: %.
+          Frequency: EVENT_BASED — at packing and after storage.
+          Threshold: Quantitative Absolute: ≤5% after 8 weeks. Eliminatory: L2.
+
+     (12) Cold storage evaluation
+          Original name: Cold storage evaluation
+          NuBred standard name: Post-Harvest Evaluation
+          Family F5. Input type: NUMBER. Unit: % damaged/rotten and % weight loss.
+          How to measure: At 4, 8, 12, 16 weeks in cold storage (0–1°C).
+          Frequency: CALENDAR_FIXED — 4-week interval in store.
+          Window: At 4, 8, 12, 16 weeks in cold storage (0–1°C).
+          Sample: 50 fruit per genotype per pull.
+          Threshold: Quantitative Absolute: ≤8% damaged at 12 weeks. Eliminatory: L2.
+
+     (13) Shelf life
+          Name: Shelf life (days at 20°C after store)
+          Family F5. Input type: NUMBER. Unit: days.
+          Frequency: EVENT_BASED — per storage pull. Threshold: ≥10 days. Eliminatory: L3.
+
+     (14) Temperature
+          Name: Mean daily temperature
+          Family F6 — Climate. Input type: NUMBER. Unit: °C.
+          How to measure: Daily — continuous weather station logging.
+          Frequency: CALENDAR_FIXED. Frequency value: Daily — continuous weather station logging.
+          Threshold: none (contextual, no threshold). Eliminatory: null.
+
+     (15) Irrigation log
+          Original name: Irrigation log
+          Family F8 — Agronomic Operations. Input type: TEXT (volume also NUMBER, unit mm).
+          Frequency: CALENDAR_FIXED — weekly operational log.
+          How to measure: Water applied (mm) and method (drip/microjet) recorded by Field Observer.
+          Threshold: none. Eliminatory: null.
+
+     (16) Fertilization record
+          Name: Fertilization treatments
+          Family F8. Input type: TEXT.
+          Frequency: ON_DEMAND / per application. Operational log, not observation.
+
+     (17) Pruning schedule
+          Name: Pruning operations
+          Family F8. Input type: TEXT.
+          Frequency: EVENT_BASED — winter prune and summer prune.
+
+     (18) Incident photo
+          Name: Symptom photograph
+          Family F4. Input type: PHOTO.
+          Frequency: ON_DEMAND for anomalies / incidents.
+
+     (19) Observer comments
+          Name: Field notes
+          Family F1. Input type: TEXT.
+          Frequency: ON_DEMAND.
+
+================================================================================
+ARTICLE 14 — COMMERCIAL PROTOCOL (LAUNCH AND SCALE)
+================================================================================
+
+14.1 Protocol name: "Commercial Production and Royalty Protocol — Kiwifruit".
+     Protocol type: COMMERCIAL.
+     Linked phase: LAUNCH (also governs SCALE; extract a second COMMERCIAL entry linked
+     to SCALE if required — same source Annex 6).
+     Source document: this Agreement — Annex 6.
+     Objective: Production tracking, 4-measurement forecast cycle, harvest actuals and
+     royalty calculation. This protocol replaces the Observational Protocol at Launch.
+     A project does NOT continue the Observational Protocol into Launch.
+
+14.2 Parameters (Annex 6):
+
+     (1) Fruit Set Count
+         Name: Fruit Set Count
+         Family F7 — Commercial. Input type: NUMBER. Unit: fruit/plant.
+         Frequency: EVENT_BASED — measurement 1 of 4-measurement forecast cycle
+         (fruit set, 60 days pre-harvest, pre-harvest estimate, harvest actual).
+         Window: BBCH 71–73. Sample: 10 plants per parcel.
+         Threshold: none. Eliminatory: null.
+
+     (2) Production forecast (60 days pre-harvest)
+         Name: 60-day pre-harvest forecast
+         Family F7. Input type: NUMBER. Unit: kg/ha.
+         Frequency: EVENT_BASED — measurement 2 of 4. PHASE_GATE before Launch→Scale.
+
+     (3) Pre-harvest estimate
+         Name: Pre-harvest estimate
+         Family F7. Input type: NUMBER. Unit: kg.
+         Frequency: EVENT_BASED — measurement 3 of 4, within 14 days of harvest start.
+
+     (4) Harvest actual
+         Name: Harvest actual (declared kg)
+         Family F7. Input type: NUMBER. Unit: kg.
+         Frequency: EVENT_BASED — measurement 4 of 4. Deadline: within 30 days of harvest
+         completion. Used for Brand royalty.
+
+     (5) Packed fruit for royalty
+         Name: Packed kg meeting Capitolato
+         Family F7. Input type: NUMBER. Unit: kg.
+         Frequency: CALENDAR_FIXED — reported 15 January. Direct royalty input.
+
+     (6) Yield (commercial)
+         Name: Commercial yield
+         Family F3. Input type: NUMBER. Unit: kg/ha.
+         Frequency: EVENT_BASED — harvest. Royalty-relevant (delta EBITDA).
+
+================================================================================
+ARTICLE 15 — GROWER LAND AND SUPPLY (FOR FUTURE SUBLICENCES)
+================================================================================
+
+15.1 Licensed Growers approved by the Licensee shall plant only on georeferenced Land in
+     Annex 2. Example parcel (Pilot/Launch demonstration block):
+
+     Parcel ID: ES-LLE-014
+     GPS: 41.6176 N, 0.6200 E (cadastral ref. 25120A01400012)
+     Area: 0.80 ha
+     Training system: pergola
+     Planting year: 2025
+     Irrigation: drip
+     Varieties: Smeralda, Dorì Gold
+
+15.2 New parcels require a formal written Addendum to Annex 2 before planting.
+
+15.3 Entire harvest shall be supplied to the Licensee / Authorised Distributors. Exception:
+     low-quality / industrial processing fruit may be sold to processors listed in Annex 9
+     with Licensor's prior written consent.
+
+15.4 If a grower sells or leases the land, plants of Licensed Varieties shall be destroyed
+     or transferred only with Licensor consent. Association of Producers members must have
+     the AoP co-sign any grower sublicence.
+
+================================================================================
+ARTICLE 16 — TERM, RENEWAL AND DATES
+================================================================================
+
+16.1 Effective Date / date of signature: 15 March 2024.
+
+16.2 This Agreement continues until expiry of CPVO PBR in EU territory for Smeralda
+     (expected 31 December 2056), unless earlier terminated.
+
+16.3 Automatic renewal: if PBR is extended or a new CPVR is granted for a Licensed Variety,
+     this Agreement automatically renews for that variety until the new expiry, unless either
+     Party gives written notice of non-renewal at least 180 days before the then-current expiry.
+     Either Party may elect not to renew.
+
+16.4 Evaluation Period: 4 growing seasons from Release Date 1 September 2024 (ends 31 August 2028).
+
+================================================================================
+ARTICLE 17 — TERMINATION
+================================================================================
+
+17.1 EXPRESS termination (immediate, without prior notice — equivalent to art. 1456 Italian
+     Civil Code) may be exercised by the Licensor upon:
+     (a) Non-payment of royalties for more than 30 days after written demand;
+     (b) Failure to meet Minimum Quantities for 2 consecutive seasons after the recovery
+         window (Article 7.4 Step 3);
+     (c) Unauthorised propagation or maintenance of unauthorised Mother Plants;
+     (d) Sale of fruit outside the Commercialisation Territory;
+     (e) Failure to notify an EDV within 15 days;
+     (f) Insolvency or winding-up of the Licensee.
+     Notice days: null (EXPRESS — no notice period).
+
+17.2 ORDINARY termination (with notice):
+     (a) Either Party may terminate for convenience with 180 calendar days' written notice
+         after the Evaluation Period has ended;
+     (b) Licensee may terminate if Licensor fails to maintain PBR and does not cure within
+         90 days of notice — ordinary, notice_days: 90;
+     (c) Material breach not listed in 17.1: 60 calendar days' notice to cure, then termination.
+         notice_days: 60.
+
+================================================================================
+ARTICLE 18 — PENALTIES
+================================================================================
+
+18.1 Purchasing plants from an unauthorised source: €5.00 per plant, payable by LICENSEE
+     to LICENSOR, unit per plant.
+
+18.2 False census declaration: 10× declared royalties for the affected season, payable by
+     LICENSEE to LICENSOR, unit flat sum (season).
+
+18.3 Failure to meet Minimum Quantities (Step 1): lump-sum per Annex 6 formula
+     (shortfall plants × €2.50), payable by LICENSEE to LICENSOR, unit per plant shortfall.
+
+18.4 Unauthorised propagation / undeclared plants: €8.00 per plant, payable by NURSERY
+     (if nursery default) or LICENSEE to LICENSOR, unit per plant.
+
+18.5 Disclosure of Confidential Information: €50,000 flat sum, payable by the breaching
+     Party to the other Party.
+
+================================================================================
+ARTICLE 19 — SURVIVING OBLIGATIONS
+================================================================================
+
+19.1 Confidentiality — survives indefinitely. Covers all Confidential Information including
+     VCU data, parentage, and Capitolato.
+
+19.2 EDV notification — survives indefinitely. Immediate notification and tissue sample.
+
+19.3 Non-compete — 2 years post-termination in the Production Territory, limited to yellow
+     kiwifruit commercialisation under a competing club mark.
+
+19.4 Plant destruction — within 30 days post-termination, under Licensor supervision if
+     requested. Applies to Mother Plants and unsold Finished Plants.
+
+19.5 IP non-challenge — Licensee shall not challenge Licensor's PBR or Trademark during
+     the term and for 5 years post-termination.
+
+19.6 Breeding limitation — 20 years post-termination for VCU data use; Licensee shall not
+     make crosses or create hybrids with Licensed Varieties. Breeding limitations apply
+     only to NPV-derived varieties and Licensed Varieties.
+
+19.7 Survival of Articles 4.3 (EDV), 8 (accrued royalties), 18 (penalties), 19 and 20.
+
+================================================================================
+ARTICLE 20 — DISPUTE RESOLUTION
+================================================================================
+
+20.1 Applicable law: Italian law. English text of this Agreement prevails (this document
+     is English only).
+
+20.2 Competent forum: Court of Bologna. The Licensor (CIV) may unilaterally derogate and
+     bring proceedings before any other competent court in the Production Territory.
+
+20.3 Arbitration is not chosen. Arbitration: false. Arbitration details: null.
+
+================================================================================
+ARTICLE 21 — MISCELLANEOUS
+================================================================================
+
+21.1 The Licensee shall allow the Licensor and its Technical Manager access to all trial
+     sites, orchards, nursery facilities and relevant accounts upon 5 days' notice.
+
+21.2 Sub-contracting of VCU or nursery work requires prior written Licensor approval.
+
+21.3 Amendment: this Agreement may be amended only by written instrument signed by all Parties.
+     First expected amendment window: Option exercise (2028).
+
+21.4 Annexes form an integral part of this Agreement:
+     Annex 1 — IP Schedule (varieties, PBR, plants)
+     Annex 2 — Georeferenced parcels
+     Annex 3 — Option Rights and Minimum Licensing Conditions
+     Annex 4 — Authorised Nursery, Mother Plant ratio, certification
+     Annex 5 — VCU Evaluation Protocol — Kiwifruit (Observational)
+     Annex 6 — Commercial Production and Royalty Protocol
+     Annex 7 — Capitolato / Quality Specification (signed 20 January 2028)
+     Annex 8 — Trademark Use Policy (Dorì)
+     Annex 9 — Authorised Distributors / Fruit Marketers
+
+================================================================================
+SIGNATURE BLOCK
+================================================================================
+
+Signed in Bologna on 15 March 2024.
+
+For the Licensor / Breeder / Principal:
+C.I.V. Consorzio Italiano Vivaisti soc. cons. a r.l.
+Name: Dr. Marco Bellini, Legal Representative
+Signature: /s/ M. Bellini
+Country of registration: Italy
+
+For the Licensee / IVM:
+Agropro Iberia S.L.
+Name: Elena Vargas, Managing Director
+Signature: /s/ E. Vargas
+Country of registration: Spain
+
+For the Authorised Nursery (Articles 8, 9 and Annex 4 only):
+Vivaio Verde Autorizado S.A.
+Name: João Ferreira, Nursery Director
+Signature: /s/ J. Ferreira
+Country of registration: Spain
+
+================================================================================
+ANNEX 1 — IP SCHEDULE (EXTRACT)
+================================================================================
+
+Species (all rows): Actinidia chinensis — common name kiwifruit (yellow kiwi).
+
+| Commercial name | Breeder code | Status     | Office | Number       | Grant/Filing     | Plants (Scale plan) | Phases                          |
+| Smeralda        | CVRI-08      | PROTECTED  | CPVO   | CPVO 44847   | Grant 18/06/2022 | 30,000              | Trial, Pilot, Launch, Scale     |
+| Dorì Gold       | CVRI-14A     | PROTECTED  | CPVO   | CPVO 45102   | Grant 04/11/2023 | 18,000              | Trial, Pilot, Launch, Scale     |
+| NPV-Yellow-21   | CIV/21-Y     | PENDING    | CPVO   | A2023-1188   | Filing 09/05/2023| 40 (Trial only)     | Trial                           |
+
+PBR expected expiry (Smeralda CPVR): 31 December 2056.
+
+================================================================================
+ANNEX 5 / 6 — PROTOCOL SOURCE TITLES (FOR EXTRACTION)
+================================================================================
+
+Source document names to cite in evidence:
+- "Exclusive Variety Licence Agreement NBR-LIC-F1-2024-014"
+- "Annex 5 — VCU Evaluation Protocol — Kiwifruit"
+- "Annex 6 — Commercial Production and Royalty Protocol — Kiwifruit"
+- "Annex 7 — Capitolato Quality Specification (signed 20 January 2028)"
+
+END OF DOCUMENT

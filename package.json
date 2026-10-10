@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "minio:up": "docker compose -f docker-compose.minio.yml up -d",
+    "minio:down": "docker compose -f docker-compose.minio.yml down",
     "test": "set NODE_OPTIONS=--experimental-vm-modules && jest",
+    "test:migrations": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration/migration-safety.test.js --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
@@ -22,16 +25,24 @@
   },
   "homepage": "https://github.com/Bertomaycry/Nubred-backend#readme",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1115.0",
+    "@aws-sdk/s3-request-presigner": "^3.1115.0",
     "@clerk/express": "^2.0.8",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "5.22.0",
     "cloudinary": "^2.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "mammoth": "^1.12.1",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "resend": "^6.12.4",
-    "svix": "^1.90.0"
+    "svix": "^1.90.0",
+    "unpdf": "^1.8.1",
+    "zod": "^4.4.3",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",

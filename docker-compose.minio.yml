@@ -1,0 +1,20 @@
+# Local MinIO — S3-compatible object storage for development.
+# Production: point AWS_S3_ENDPOINT at Hetzner Object Storage or omit it for AWS S3.
+# Usage: npm run minio:up
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: nubred-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - nubred_minio_data:/data
+
+volumes:
+  nubred_minio_data:
