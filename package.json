@@ -10,6 +10,7 @@
     "minio:up": "docker compose -f docker-compose.minio.yml up -d",
     "minio:down": "docker compose -f docker-compose.minio.yml down",
     "test": "set NODE_OPTIONS=--experimental-vm-modules && jest",
+    "test:migrations": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration/migration-safety.test.js --runInBand",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },

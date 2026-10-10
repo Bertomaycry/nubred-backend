@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - preview
+  pull_request:
+    branches:
+      - preview
 
 permissions:
   contents: write
@@ -59,10 +62,88 @@ jobs:
           kill $SERVER_PID
           exit 1
 
+  # Disposable Postgres only. Do not point this job at secrets.DATABASE_URL.
+  Migration-Safety:
+    name: Migration safety
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nubred
+          POSTGRES_PASSWORD: nubred
+          POSTGRES_DB: nubred
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nubred -d nubred"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://nubred:nubred@127.0.0.1:5432/nubred
+      MIGRATION_DATABASE_URL: postgresql://nubred:nubred@127.0.0.1:5432/nubred
+      MIGRATION_SHADOW_DATABASE_URL: postgresql://nubred:nubred@127.0.0.1:5432/nubred_shadow
+      MIGRATION_UPGRADE_DATABASE_URL: postgresql://nubred:nubred@127.0.0.1:5432/nubred_upgrade
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve migration base
+        id: base
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -eu
+          SHA=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            SHA="$BASE_SHA"
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            SHA="$BEFORE_SHA"
+          fi
+          if [ -n "$SHA" ]; then
+            git cat-file -e "${SHA}^{commit}"
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Create disposable databases
+        env:
+          PGPASSWORD: nubred
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql -h 127.0.0.1 -U nubred -d nubred -v ON_ERROR_STOP=1 -c "CREATE DATABASE nubred_shadow;"
+          psql -h 127.0.0.1 -U nubred -d nubred -v ON_ERROR_STOP=1 -c "CREATE DATABASE nubred_upgrade;"
+
+      - name: Run migration safety tests
+        env:
+          MIGRATION_BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: npm run test:migrations
+
   CD-Branch:
     name: Deploy to server
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: CI-Validation-Preview  # Only runs if CI passes
+    needs:
+      - CI-Validation-Preview
+      - Migration-Safety
     environment: Preview
     steps:
       - name: Deploy via SSH
