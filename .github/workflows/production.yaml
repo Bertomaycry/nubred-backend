@@ -156,7 +156,9 @@ jobs:
             mkdir -p /home/deployer/apps/backups/nubred-production
             DATABASE_URL=$(sed -n 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '"' | tr -d "'")
             STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+            APP_ID=$(docker compose ps -q app | head -n 1)
             docker run --rm \
+              --network "container:${APP_ID}" \
               -e DATABASE_URL \
               -v /home/deployer/apps/backups/nubred-production:/backups \
               postgres:16 \
