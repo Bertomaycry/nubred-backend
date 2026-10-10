@@ -168,6 +168,7 @@ async function insertFixtureRow(prisma, table, preferred) {
 
   const names = [];
   const values = [];
+  const placeholders = [];
   for (const column of columns) {
     let value = preferred[column.column_name];
     if (value === undefined) {
@@ -176,11 +177,16 @@ async function insertFixtureRow(prisma, table, preferred) {
     }
     names.push(quoteIdent(column.column_name));
     values.push(value);
+    const placeholder = `$${values.length}`;
+    placeholders.push(
+      column.data_type === "USER-DEFINED"
+        ? `${placeholder}::${quoteIdent(column.udt_name)}`
+        : placeholder,
+    );
   }
 
-  const placeholders = values.map((_, index) => `$${index + 1}`).join(", ");
   await prisma.$executeRawUnsafe(
-    `INSERT INTO ${quoteIdent(table)} (${names.join(", ")}) VALUES (${placeholders})`,
+    `INSERT INTO ${quoteIdent(table)} (${names.join(", ")}) VALUES (${placeholders.join(", ")})`,
     ...values,
   );
 }
