@@ -159,7 +159,7 @@ jobs:
             git checkout preview
             set -eu
             mkdir -p /home/deployer/apps/backups/nubred
-            DATABASE_URL=$(sed -n 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '"' | tr -d "'")
+            DATABASE_URL=$(sed -n 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '"' | tr -d "'" | tr -d '\r')
             STAMP=$(date -u +%Y%m%dT%H%M%SZ)
             DUMP_URL="$DATABASE_URL"
             DB_HOST=$(printf '%s' "$DATABASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')
