@@ -157,5 +157,16 @@ jobs:
             cd ~/apps/nubred
             git pull
             git checkout preview
+            set -eu
+            mkdir -p /home/deployer/apps/backups/nubred
+            DATABASE_URL=$(sed -n 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '"' | tr -d "'" | tr -d '\r')
+            STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+            DUMP_URL="$DATABASE_URL"
+            DB_HOST=$(printf '%s' "$DATABASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+            if docker inspect "$DB_HOST" >/dev/null 2>&1; then
+              DUMP_URL=$(printf '%s' "$DATABASE_URL" | sed -E "s#@${DB_HOST}([:/])#@127.0.0.1\\1#")
+            fi
+            pg_dump "$DUMP_URL" -Fc --no-owner --no-acl -f "/home/deployer/apps/backups/nubred/nubred-${STAMP}.dump"
+            find /home/deployer/apps/backups/nubred -name 'nubred-*.dump' -mtime +14 -delete
             docker compose up --build -d
             docker image prune -f  # clean up old layers
