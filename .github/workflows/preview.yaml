@@ -157,5 +157,15 @@ jobs:
             cd ~/apps/nubred
             git pull
             git checkout preview
+            set -eu
+            mkdir -p /home/deployer/apps/backups/nubred
+            DATABASE_URL=$(sed -n 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '"' | tr -d "'")
+            STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+            docker run --rm \
+              -e DATABASE_URL \
+              -v /home/deployer/apps/backups/nubred:/backups \
+              postgres:16 \
+              pg_dump "$DATABASE_URL" -Fc --no-owner --no-acl -f "/backups/nubred-${STAMP}.dump"
+            find /home/deployer/apps/backups/nubred -name 'nubred-*.dump' -mtime +14 -delete
             docker compose up --build -d
             docker image prune -f  # clean up old layers
