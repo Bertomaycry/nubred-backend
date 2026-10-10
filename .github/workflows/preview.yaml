@@ -161,9 +161,13 @@ jobs:
             mkdir -p /home/deployer/apps/backups/nubred
             DATABASE_URL=$(sed -n 's/^[[:space:]]*DATABASE_URL[[:space:]]*=[[:space:]]*//p' .env | tail -n 1 | tr -d '"' | tr -d "'")
             STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-            APP_ID=$(docker compose ps -q app | head -n 1)
-            docker run --rm \
-              --network "container:${APP_ID}" \
+            DB_HOST=$(printf '%s' "$DATABASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+            NETWORK_FLAG=
+            if docker inspect "$DB_HOST" >/dev/null 2>&1; then
+              PG_NET=$(docker inspect "$DB_HOST" --format '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' | head -n 1)
+              NETWORK_FLAG="--network=${PG_NET}"
+            fi
+            docker run --rm $NETWORK_FLAG \
               -e DATABASE_URL \
               -v /home/deployer/apps/backups/nubred:/backups \
               postgres:16 \
