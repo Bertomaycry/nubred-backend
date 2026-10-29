@@ -4,6 +4,10 @@
  * Concrete implementation: S3StorageProvider (MinIO, Hetzner Object Storage, AWS S3).
  * Switch providers by changing AWS_S3_ENDPOINT / credentials — not by changing callers.
  *
+ * Every client has its own private bucket (nubred-{slug}). Methods take the bucket
+ * name explicitly; callers always pass the caller's tenant bucket (req.bucket /
+ * tenant.bucketName), never a value supplied by the browser.
+ *
  * All storage calls MUST use getStorage() after initStorage() at app startup.
  */
 
@@ -23,13 +27,8 @@
  */
 
 export class StorageProvider {
-  /** @returns {string} */
-  get bucket() {
-    throw new Error(`${this.constructor.name} must implement getter bucket`);
-  }
-
   /**
-   * Create the bucket if missing and apply CORS for browser PUT/GET.
+   * Verify the storage endpoint is reachable with the configured credentials.
    * @returns {Promise<void>}
    */
   async init() {
@@ -37,47 +36,79 @@ export class StorageProvider {
   }
 
   /**
-   * @param {{ key: string, mimeType: string, expiresIn?: number }} params
+   * @param {string} bucket
+   * @returns {Promise<boolean>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async bucketExists(bucket) {
+    throw new Error(`${this.constructor.name} must implement bucketExists()`);
+  }
+
+  /**
+   * Create a private bucket with browser CORS. Throws if it already exists.
+   * @param {string} bucket
+   * @returns {Promise<void>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async createBucket(bucket) {
+    throw new Error(`${this.constructor.name} must implement createBucket()`);
+  }
+
+  /**
+   * Delete a bucket only if it holds no objects.
+   * @param {string} bucket
+   * @returns {Promise<boolean>} true when deleted
+   */
+  // eslint-disable-next-line no-unused-vars
+  async deleteBucketIfEmpty(bucket) {
+    throw new Error(`${this.constructor.name} must implement deleteBucketIfEmpty()`);
+  }
+
+  /**
+   * @param {{ bucket: string, key: string, mimeType: string, expiresIn?: number }} params
    * @returns {Promise<PresignedUpload>}
    */
   // eslint-disable-next-line no-unused-vars
-  async getPresignedPutUrl({ key, mimeType, expiresIn }) {
+  async getPresignedPutUrl({ bucket, key, mimeType, expiresIn }) {
     throw new Error(`${this.constructor.name} must implement getPresignedPutUrl()`);
   }
 
   /**
-   * @param {{ key: string, filename?: string, expiresIn?: number }} params
+   * @param {{ bucket: string, key: string, filename?: string, expiresIn?: number }} params
    * @returns {Promise<PresignedDownload>}
    */
   // eslint-disable-next-line no-unused-vars
-  async getPresignedGetUrl({ key, filename, expiresIn }) {
+  async getPresignedGetUrl({ bucket, key, filename, expiresIn }) {
     throw new Error(`${this.constructor.name} must implement getPresignedGetUrl()`);
   }
 
   /**
+   * @param {string} bucket
    * @param {string} key
    * @returns {Promise<{ exists: boolean, sizeBytes: number | null, etag: string | null }>}
    */
   // eslint-disable-next-line no-unused-vars
-  async headObject(key) {
+  async headObject(bucket, key) {
     throw new Error(`${this.constructor.name} must implement headObject()`);
   }
 
   /**
+   * @param {string} bucket
    * @param {string} key
    * @returns {Promise<Buffer>}
    */
   // eslint-disable-next-line no-unused-vars
-  async getObjectBuffer(key) {
+  async getObjectBuffer(bucket, key) {
     throw new Error(`${this.constructor.name} must implement getObjectBuffer()`);
   }
 
   /**
+   * @param {string} bucket
    * @param {string} key
    * @returns {Promise<void>}
    */
   // eslint-disable-next-line no-unused-vars
-  async deleteObject(key) {
+  async deleteObject(bucket, key) {
     throw new Error(`${this.constructor.name} must implement deleteObject()`);
   }
 }

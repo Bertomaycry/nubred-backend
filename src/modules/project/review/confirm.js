@@ -1,4 +1,3 @@
-import prisma from "../../../lib/prisma.js";
 import { evaluateSectionRules } from "./evaluate-rules.js";
 import { requireSectionKey, requireSucceededDraft } from "./load.js";
 import { promoteConfirmedSection } from "./promote.js";
@@ -9,13 +8,14 @@ import { promoteConfirmedSection } from "./promote.js";
  * Chatbot is not involved.
  */
 export async function confirmSection({
+  db,
   projectId,
   sectionKey,
   userId,
   warningsAck,
 }) {
   const section = requireSectionKey(sectionKey);
-  const row = await requireSucceededDraft(projectId, sectionKey);
+  const row = await requireSucceededDraft(db, projectId, sectionKey);
 
   const evaluation = evaluateSectionRules(section.rules, {
     extraction: row.payload,
@@ -38,7 +38,7 @@ export async function confirmSection({
     ? warningsAck.filter((id) => typeof id === "string")
     : [];
 
-  const confirmation = await prisma.$transaction(async (tx) => {
+  const confirmation = await db.$transaction(async (tx) => {
     await promoteConfirmedSection(tx, {
       projectId,
       sectionKey,

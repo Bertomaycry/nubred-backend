@@ -78,4 +78,65 @@ export const sendEarlyAdopterConfirmation = async (email, app) => {
   }
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/**
+ * Tell someone they were invited to a project (Doc A: Pending until accepted).
+ */
+export const sendProjectInvitation = async ({
+  email,
+  projectName,
+  roleLabel,
+  inviterName,
+  workspaceUrl,
+}) => {
+  const from = process.env.RESEND_FROM_EMAIL;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    throw new Error("Resend is not configured");
+  }
+
+  const logoUrl = process.env.NUBRED_LOGO_URL || DEFAULT_LOGO_URL;
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <body style="margin: 0; padding: 0; background-color: #f4f4f5;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td align="center" style="background-color: #000000; padding: 32px 24px;">
+                    <img src="${logoUrl}" alt="NuBred" width="160" style="display: block; margin: 0 auto; max-width: 160px; height: auto;" />
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 24px; font-family: Arial, Helvetica, sans-serif; line-height: 1.6; color: #111111;">
+                    <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600;">You have been invited to a NuBred project</h2>
+                    <p style="margin: 0 0 16px;">${escapeHtml(inviterName)} invited you to <strong>${escapeHtml(projectName)}</strong> as <strong>${escapeHtml(roleLabel)}</strong>.</p>
+                    <p style="margin: 0 0 16px;"><a href="${escapeHtml(workspaceUrl)}">Open your workspace</a> and accept the invitation from your Projects list.</p>
+                    <p style="margin: 0;">— The NuBred Team</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const { error } = await resend.emails.send({
+    from,
+    to: email,
+    subject: `You were invited to ${projectName} on NuBred`,
+    html,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
 export default resend;

@@ -1,5 +1,4 @@
-import { Prisma } from "@prisma/client";
-import prisma from "../../../lib/prisma.js";
+import { TenantPrisma as Prisma } from "../../../lib/tenant-prisma.js";
 import {
   assertWritableFieldPath,
   clonePayload,
@@ -30,6 +29,7 @@ function toJsonValue(value) {
  *
  */
 export async function patchSectionField({
+  db,
   projectId,
   sectionKey,
   fieldPath,
@@ -40,7 +40,7 @@ export async function patchSectionField({
 }) {
   const section = requireSectionKey(sectionKey);
   const path = assertWritableFieldPath(fieldPath);
-  const row = await requireSucceededDraft(projectId, sectionKey);
+  const row = await requireSucceededDraft(db, projectId, sectionKey);
 
   if (value === undefined) {
     throw Object.assign(new Error("value is required (use null to clear a field)."), {
@@ -80,8 +80,8 @@ export async function patchSectionField({
     origin: source === "CHATBOT" ? "CHATBOT" : "VM_MANUAL",
   };
 
-  const [updated, override] = await prisma.$transaction([
-    prisma.sectionExtraction.update({
+  const [updated, override] = await db.$transaction([
+    db.sectionExtraction.update({
       where: { id: row.id },
       data: {
         payload: parsed.data,
@@ -91,7 +91,7 @@ export async function patchSectionField({
         evidenceItems: { orderBy: { fieldPath: "asc" } },
       },
     }),
-    prisma.fieldOverride.create({
+    db.fieldOverride.create({
       data: {
         projectId,
         sectionKey,

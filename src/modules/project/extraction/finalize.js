@@ -1,4 +1,3 @@
-import prisma from "../../../lib/prisma.js";
 import { enqueueJob } from "../jobs/enqueue.js";
 import { JOB_TYPES } from "../jobs/types.js";
 import { getExtractorSections } from "../sections/registry.js";
@@ -7,14 +6,18 @@ import { getExtractorSections } from "../sections/registry.js";
  * After an extractor section finishes, enqueue chronology if every extractor
  * is terminal (SUCCEEDED or FAILED). If all extractors failed, fail the run.
  *
+ * The decision is made inside the tenant database; the job itself goes to the
+ * platform queue after that transaction commits.
+ *
+ * @param {object} db tenant Prisma client
  * @param {string} extractionRunId
  * @param {string} tenantId
  * @param {string} projectId
  */
-export async function maybeEnqueueChronology(extractionRunId, tenantId, projectId) {
+export async function maybeEnqueueChronology(db, extractionRunId, tenantId, projectId) {
   const extractorKeys = getExtractorSections().map((s) => s.key);
 
-  await prisma.$transaction(async (tx) => {
+  const chronologyId = await db.$transaction(async (tx) => {
     const remaining = await tx.sectionExtraction.count({
       where: {
         extractionRunId,
@@ -22,16 +25,16 @@ export async function maybeEnqueueChronology(extractionRunId, tenantId, projectI
         status: { in: ["QUEUED", "RUNNING"] },
       },
     });
-    if (remaining > 0) return;
+    if (remaining > 0) return null;
 
     const chronology = await tx.sectionExtraction.findFirst({
       where: { extractionRunId, sectionKey: "chronology" },
     });
     if (!chronology) {
       await finalizeRun(tx, extractionRunId);
-      return;
+      return null;
     }
-    if (chronology.status !== "QUEUED") return;
+    if (chronology.status !== "QUEUED") return null;
 
     const succeeded = await tx.sectionExtraction.count({
       where: {
@@ -50,21 +53,22 @@ export async function maybeEnqueueChronology(extractionRunId, tenantId, projectI
         },
       });
       await finalizeRun(tx, extractionRunId);
-      return;
+      return null;
     }
 
-    await enqueueJob(
-      {
-        type: JOB_TYPES.DERIVE_CHRONOLOGY,
-        tenantId,
-        projectId,
-        payload: {
-          extractionRunId,
-          sectionExtractionId: chronology.id,
-        },
-      },
-      tx
-    );
+    return chronology.id;
+  });
+
+  if (!chronologyId) return;
+
+  await enqueueJob({
+    type: JOB_TYPES.DERIVE_CHRONOLOGY,
+    tenantId,
+    projectId,
+    payload: {
+      extractionRunId,
+      sectionExtractionId: chronologyId,
+    },
   });
 }
 
@@ -72,7 +76,7 @@ export async function maybeEnqueueChronology(extractionRunId, tenantId, projectI
  * Set ExtractionRun status from its section rows. Call when chronology
  * finishes, or when extractors all fail with no chronology job.
  *
- * @param {import("@prisma/client").Prisma.TransactionClient | import("@prisma/client").PrismaClient} tx
+ * @param {object} tx tenant Prisma client or transaction client
  * @param {string} extractionRunId
  */
 export async function finalizeRun(tx, extractionRunId) {
@@ -102,11 +106,12 @@ export async function finalizeRun(tx, extractionRunId) {
 }
 
 /**
+ * @param {object} db tenant Prisma client
  * @param {string} extractionRunId
  * @param {{ inputTokens?: number, outputTokens?: number, modelId?: string, promptHash?: string, provider?: string }} usage
  */
-export async function accumulateRunUsage(extractionRunId, usage) {
-  await prisma.extractionRun.updateMany({
+export async function accumulateRunUsage(db, extractionRunId, usage) {
+  await db.extractionRun.updateMany({
     where: { id: extractionRunId, startedAt: null },
     data: {
       status: "RUNNING",
@@ -114,7 +119,7 @@ export async function accumulateRunUsage(extractionRunId, usage) {
     },
   });
 
-  await prisma.extractionRun.update({
+  await db.extractionRun.update({
     where: { id: extractionRunId },
     data: {
       status: "RUNNING",

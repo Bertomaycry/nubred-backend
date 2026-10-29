@@ -1,4 +1,3 @@
-import prisma from "../../../lib/prisma.js";
 import { getSection, isSectionKey } from "../sections/registry.js";
 
 export function requireSectionKey(sectionKey) {
@@ -14,8 +13,8 @@ export function requireSectionKey(sectionKey) {
   return getSection(sectionKey);
 }
 
-export async function getLatestSectionRow(projectId, sectionKey) {
-  const run = await prisma.extractionRun.findFirst({
+export async function getLatestSectionRow(db, projectId, sectionKey) {
+  const run = await db.extractionRun.findFirst({
     where: { projectId },
     orderBy: { createdAt: "desc" },
     include: {
@@ -30,8 +29,8 @@ export async function getLatestSectionRow(projectId, sectionKey) {
   return run?.sections?.[0] ?? null;
 }
 
-export async function requireSucceededDraft(projectId, sectionKey) {
-  const row = await getLatestSectionRow(projectId, sectionKey);
+export async function requireSucceededDraft(db, projectId, sectionKey) {
+  const row = await getLatestSectionRow(db, projectId, sectionKey);
   if (!row || row.status !== "SUCCEEDED" || row.payload == null) {
     throw Object.assign(
       new Error(

@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import prisma from "../../../lib/prisma.js";
 import { assembleCorpus, pipelineDocumentWhere } from "../extraction/corpus.js";
 import { composeChatSystemPrompt } from "../prompt/compose.js";
 import { getEnabledSections } from "../sections/registry.js";
@@ -10,21 +9,22 @@ export const CHAT_CORPUS_MAX_CHARS = 80_000;
 export const PAYLOAD_CONTEXT_MAX_CHARS = 16_000;
 
 export async function loadChatContext({
+  db,
   projectId,
   sectionKey,
   fieldPath,
   documentIds,
 }) {
   const section = requireSectionKey(sectionKey);
-  const row = await getLatestSectionRow(projectId, sectionKey);
+  const row = await getLatestSectionRow(db, projectId, sectionKey);
 
-  const pipelineDocs = await prisma.document.findMany({
+  const pipelineDocs = await db.document.findMany({
     where: pipelineDocumentWhere(projectId),
     include: { pages: { orderBy: { pageNumber: "asc" } } },
     orderBy: { createdAt: "asc" },
   });
 
-  const chatbotDocs = await prisma.document.findMany({
+  const chatbotDocs = await db.document.findMany({
     where: {
       projectId,
       status: "READY",
@@ -37,7 +37,7 @@ export async function loadChatContext({
 
   let scopedDocs = [];
   if (Array.isArray(documentIds) && documentIds.length > 0) {
-    scopedDocs = await prisma.document.findMany({
+    scopedDocs = await db.document.findMany({
       where: {
         id: { in: documentIds },
         projectId,
@@ -74,7 +74,7 @@ export async function loadChatContext({
   }
 
   const evidence = fieldPath && row
-    ? await prisma.evidenceItem.findMany({
+    ? await db.evidenceItem.findMany({
         where: {
           projectId,
           sectionKey,
@@ -87,7 +87,7 @@ export async function loadChatContext({
         orderBy: { createdAt: "asc" },
       })
     : row
-      ? await prisma.evidenceItem.findMany({
+      ? await db.evidenceItem.findMany({
           where: { sectionExtractionId: row.id },
           orderBy: { fieldPath: "asc" },
           take: 80,
@@ -95,6 +95,7 @@ export async function loadChatContext({
       : [];
 
   return {
+    db,
     section,
     row,
     pipelineDocs,
@@ -129,12 +130,12 @@ export function formatEvidence(evidence) {
     .join("\n");
 }
 
-export async function downstreamWarning(projectId, sectionKey) {
+export async function downstreamWarning(db, projectId, sectionKey) {
   const current = requireSectionKey(sectionKey);
   const later = getEnabledSections().filter((section) => section.order > current.order);
   if (later.length === 0) return null;
 
-  const confirmations = await prisma.sectionConfirmation.findMany({
+  const confirmations = await db.sectionConfirmation.findMany({
     where: {
       projectId,
       sectionKey: { in: later.map((section) => section.key) },

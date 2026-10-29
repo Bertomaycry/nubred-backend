@@ -1,22 +1,23 @@
-import prisma from "../../../lib/prisma.js";
 import {
   enqueueExtractorJob,
   getLeadExtractor,
 } from "./fanout.js";
 import { getExtractorSections, getEnabledSections } from "../sections/registry.js";
 import { pipelineDocumentWhere } from "../extraction/corpus.js";
+import { isSectionEnabled } from "../access/section-modules.js";
 
 /**
  * Create an ExtractionRun and one SectionExtraction per enabled section.
+ * Only sections whose client module is switched on are created.
  * Only the lead extractor (contract) is queued immediately so the UI can
  * show a draft as soon as it lands. Remaining extractors are queued after
  * the lead job finishes (see fanout.js). Chronology waits until all
  * extractors are terminal.
  *
- * @param {{ projectId: string, tenantId: string }} params
+ * @param {{ db: object, projectId: string, tenantId: string, enabledModules: Set<string> }} params
  */
-export async function startExtractionRun({ projectId, tenantId }) {
-  const readyCount = await prisma.document.count({
+export async function startExtractionRun({ db, projectId, tenantId, enabledModules }) {
+  const readyCount = await db.document.count({
     where: pipelineDocumentWhere(projectId),
   });
   if (readyCount === 0) {
@@ -28,7 +29,7 @@ export async function startExtractionRun({ projectId, tenantId }) {
     );
   }
 
-  const active = await prisma.extractionRun.findFirst({
+  const active = await db.extractionRun.findFirst({
     where: {
       projectId,
       status: { in: ["QUEUED", "RUNNING"] },
@@ -42,18 +43,22 @@ export async function startExtractionRun({ projectId, tenantId }) {
     );
   }
 
-  const extractors = getExtractorSections();
-  const sections = getEnabledSections();
-  const lead = getLeadExtractor();
+  const sections = getEnabledSections().filter((section) =>
+    isSectionEnabled(section.key, enabledModules)
+  );
+  const extractorKeys = new Set(getExtractorSections().map((s) => s.key));
+  const lead = getLeadExtractor(sections.map((s) => s.key));
 
-  if (extractors.length === 0 || !lead) {
+  if (!lead || !sections.some((s) => extractorKeys.has(s.key))) {
     throw Object.assign(
-      new Error("No extractor sections are enabled."),
-      { code: 500 }
+      new Error(
+        "No extraction modules (contract, genotype, phase, protocol) are enabled for this client."
+      ),
+      { code: 400 }
     );
   }
 
-  const run = await prisma.$transaction(async (tx) => {
+  const { run, leadRow } = await db.$transaction(async (tx) => {
     const created = await tx.extractionRun.create({
       data: {
         projectId,
@@ -64,9 +69,9 @@ export async function startExtractionRun({ projectId, tenantId }) {
       },
     });
 
-    let leadRow = null;
+    let row = null;
     for (const section of sections) {
-      const row = await tx.sectionExtraction.create({
+      const sectionRow = await tx.sectionExtraction.create({
         data: {
           extractionRunId: created.id,
           projectId,
@@ -74,28 +79,33 @@ export async function startExtractionRun({ projectId, tenantId }) {
           status: "QUEUED",
         },
       });
-      if (section.key === lead.key) leadRow = row;
+      if (section.key === lead.key) row = sectionRow;
     }
 
-    if (!leadRow) {
+    if (!row) {
       throw new Error(`Lead extractor "${lead.key}" row was not created.`);
     }
-
-    await enqueueExtractorJob(
-      {
-        tenantId,
-        projectId,
-        extractionRunId: created.id,
-        sectionExtractionId: leadRow.id,
-        sectionKey: lead.key,
-      },
-      tx
-    );
-
-    return created;
+    return { run: created, leadRow: row };
   });
 
-  return prisma.extractionRun.findUnique({
+  // Jobs live in the platform database: enqueue after the tenant rows commit.
+  try {
+    await enqueueExtractorJob({
+      tenantId,
+      projectId,
+      extractionRunId: run.id,
+      sectionExtractionId: leadRow.id,
+      sectionKey: lead.key,
+    });
+  } catch (error) {
+    await db.extractionRun.update({
+      where: { id: run.id },
+      data: { status: "FAILED", error: "Could not queue the extraction job." },
+    });
+    throw error;
+  }
+
+  return db.extractionRun.findUnique({
     where: { id: run.id },
     include: { sections: { orderBy: { createdAt: "asc" } } },
   });

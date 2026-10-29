@@ -6,32 +6,41 @@ import { getExtractorSections } from "../sections/registry.js";
 const EXTRACT_MAX_ATTEMPTS = 6;
 
 /**
- * First enabled extractor by confirmation order (contract).
+ * First extractor (by confirmation order) among the given section keys.
+ * Defaults to every registered extractor (contract first). When a client has
+ * some modules switched off, pass the section keys that exist in the run.
  * That section is the only LLM job queued at start so the UI can render
  * a draft as soon as it finishes; the rest fan out afterwards.
+ *
+ * @param {string[]} [sectionKeys]
  */
-export function getLeadExtractor() {
-  return getExtractorSections()[0] ?? null;
+export function getLeadExtractor(sectionKeys) {
+  const extractors = getExtractorSections().filter(
+    (s) => !sectionKeys || sectionKeys.includes(s.key)
+  );
+  return extractors[0] ?? null;
 }
 
 /**
+ * Jobs live in the platform database, so the platform client is used even
+ * though the section rows are in the tenant database.
+ *
  * @param {object} params
- * @param {import("@prisma/client").Prisma.TransactionClient | import("@prisma/client").PrismaClient} [tx]
  */
-export async function enqueueExtractorJob(
-  { tenantId, projectId, extractionRunId, sectionExtractionId, sectionKey },
-  tx = prisma
-) {
-  return enqueueJob(
-    {
-      type: JOB_TYPES.EXTRACT_SECTION,
-      tenantId,
-      projectId,
-      payload: { extractionRunId, sectionExtractionId, sectionKey },
-      maxAttempts: EXTRACT_MAX_ATTEMPTS,
-    },
-    tx
-  );
+export async function enqueueExtractorJob({
+  tenantId,
+  projectId,
+  extractionRunId,
+  sectionExtractionId,
+  sectionKey,
+}) {
+  return enqueueJob({
+    type: JOB_TYPES.EXTRACT_SECTION,
+    tenantId,
+    projectId,
+    payload: { extractionRunId, sectionExtractionId, sectionKey },
+    maxAttempts: EXTRACT_MAX_ATTEMPTS,
+  });
 }
 
 /**
@@ -39,61 +48,57 @@ export async function enqueueExtractorJob(
  * jobs. Idempotent — skips sectionExtractionIds that already have a job.
  *
  * @param {{
+ *   db: object,
  *   extractionRunId: string,
- *   tenantId?: string,
+ *   tenantId: string,
  *   projectId?: string,
  *   completedSectionKey?: string,
  * }} params
  */
 export async function enqueueRemainingExtractors({
+  db,
   extractionRunId,
   tenantId,
   projectId,
   completedSectionKey,
 }) {
-  const lead = getLeadExtractor();
+  const runRows = await db.sectionExtraction.findMany({
+    where: { extractionRunId },
+  });
+
+  const extractorKeys = new Set(getExtractorSections().map((s) => s.key));
+  const lead = getLeadExtractor(runRows.map((row) => row.sectionKey));
   if (!lead || completedSectionKey !== lead.key) return;
 
-  const extractors = getExtractorSections().filter((s) => s.key !== lead.key);
-  if (extractors.length === 0) return;
+  const rows = runRows.filter(
+    (row) => row.sectionKey !== lead.key && extractorKeys.has(row.sectionKey)
+  );
+  if (rows.length === 0) return;
 
-  await prisma.$transaction(async (tx) => {
-    const rows = await tx.sectionExtraction.findMany({
-      where: {
-        extractionRunId,
-        sectionKey: { in: extractors.map((s) => s.key) },
+  const existing = await prisma.job.findMany({
+    where: {
+      tenantId,
+      type: JOB_TYPES.EXTRACT_SECTION,
+      payload: {
+        path: ["extractionRunId"],
+        equals: extractionRunId,
       },
-    });
-
-    const existing = await tx.job.findMany({
-      where: {
-        type: JOB_TYPES.EXTRACT_SECTION,
-        payload: {
-          path: ["extractionRunId"],
-          equals: extractionRunId,
-        },
-      },
-      select: { payload: true },
-    });
-    const alreadyQueued = new Set(
-      existing
-        .map((job) => job.payload?.sectionExtractionId)
-        .filter(Boolean)
-    );
-
-    for (const row of rows) {
-      if (alreadyQueued.has(row.id)) continue;
-      if (row.status !== "QUEUED") continue;
-      await enqueueExtractorJob(
-        {
-          tenantId,
-          projectId,
-          extractionRunId,
-          sectionExtractionId: row.id,
-          sectionKey: row.sectionKey,
-        },
-        tx
-      );
-    }
+    },
+    select: { payload: true },
   });
+  const alreadyQueued = new Set(
+    existing.map((job) => job.payload?.sectionExtractionId).filter(Boolean)
+  );
+
+  for (const row of rows) {
+    if (alreadyQueued.has(row.id)) continue;
+    if (row.status !== "QUEUED") continue;
+    await enqueueExtractorJob({
+      tenantId,
+      projectId,
+      extractionRunId,
+      sectionExtractionId: row.id,
+      sectionKey: row.sectionKey,
+    });
+  }
 }

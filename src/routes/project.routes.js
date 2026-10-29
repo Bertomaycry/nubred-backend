@@ -2,18 +2,26 @@ import express from "express";
 import { protect } from "../middlewares/auth.middleware.js";
 import {
   attachTenant,
-  requireTenantMember,
+  requireSectionModule,
 } from "../middlewares/tenant.middleware.js";
 import {
   attachProject,
-  requireProjectViewer,
+  requireActiveMember,
   requireProjectEditor,
+  requireSectionAccess,
 } from "../middlewares/project.middleware.js";
 import {
   createProject,
   listProjects,
   getProject,
 } from "../controllers/project.controller.js";
+import {
+  listMembers,
+  inviteMember,
+  updateMember,
+  removeMember,
+  acceptInvitation,
+} from "../controllers/project-member.controller.js";
 import {
   initUpload,
   completeUpload,
@@ -38,24 +46,45 @@ import { postSectionChat } from "../controllers/section-chat.controller.js";
 
 const router = express.Router();
 
+// Tenant comes from the login (tenant_users), never from the URL or body.
+// Doc A: the Variety Manager runs the project (documents, extraction, edits,
+// chat, members). Other roles read sections per the visibility matrix.
 const withTenant = [...protect, attachTenant];
-const withProjectView = [...withTenant, requireTenantMember, attachProject, requireProjectViewer];
-const withProjectEdit = [...withTenant, requireTenantMember, attachProject, requireProjectEditor];
+const withProject = [...withTenant, attachProject];
+const withActiveMember = [...withProject, requireActiveMember];
+const withProjectEdit = [...withProject, requireProjectEditor];
+const withSection = [
+  ...withProject,
+  requireSectionAccess,
+  requireSectionModule,
+];
+const withSectionEdit = [
+  ...withProject,
+  requireProjectEditor,
+  requireSectionModule,
+];
 
 router.post("/", ...withTenant, createProject);
 router.get("/", ...withTenant, listProjects);
-router.get("/:projectId", ...withProjectView, getProject);
+router.get("/:projectId", ...withActiveMember, getProject);
+
+// Members (VM invites, changes roles, removes; invitee accepts)
+router.post("/:projectId/members/accept", ...withProject, acceptInvitation);
+router.get("/:projectId/members", ...withProjectEdit, listMembers);
+router.post("/:projectId/members", ...withProjectEdit, inviteMember);
+router.patch("/:projectId/members/:memberId", ...withProjectEdit, updateMember);
+router.delete("/:projectId/members/:memberId", ...withProjectEdit, removeMember);
 
 router.post("/:projectId/extractions", ...withProjectEdit, startExtraction);
-router.get("/:projectId/extractions", ...withProjectView, listExtractions);
+router.get("/:projectId/extractions", ...withProjectEdit, listExtractions);
 router.get(
   "/:projectId/extractions/latest",
-  ...withProjectView,
+  ...withProjectEdit,
   getLatestExtraction
 );
 router.get(
   "/:projectId/extractions/:extractionRunId",
-  ...withProjectView,
+  ...withProjectEdit,
   getExtraction
 );
 
@@ -65,35 +94,39 @@ router.post(
   ...withProjectEdit,
   completeUpload
 );
-router.get("/:projectId/documents", ...withProjectView, listDocuments);
-router.get("/:projectId/documents/:documentId", ...withProjectView, getDocument);
+router.get("/:projectId/documents", ...withProjectEdit, listDocuments);
+router.get("/:projectId/documents/:documentId", ...withProjectEdit, getDocument);
 router.get(
   "/:projectId/documents/:documentId/download",
-  ...withProjectView,
+  ...withProjectEdit,
   downloadDocument
 );
 router.delete("/:projectId/documents/:documentId", ...withProjectEdit, deleteDocument);
 
-router.get("/:projectId/sections/:sectionKey", ...withProjectView, getSection);
-router.patch("/:projectId/sections/:sectionKey/fields", ...withProjectEdit, patchField);
+router.get("/:projectId/sections/:sectionKey", ...withSection, getSection);
+router.patch(
+  "/:projectId/sections/:sectionKey/fields",
+  ...withSectionEdit,
+  patchField
+);
 router.patch(
   "/:projectId/sections/:sectionKey/review-state",
-  ...withProjectEdit,
+  ...withSectionEdit,
   patchSectionReviewState
 );
 router.post(
   "/:projectId/sections/:sectionKey/confirm",
-  ...withProjectEdit,
+  ...withSectionEdit,
   confirmSectionHandler
 );
 router.post(
   "/:projectId/sections/:sectionKey/chat",
-  ...withProjectEdit,
+  ...withSectionEdit,
   postSectionChat
 );
 router.post(
   "/:projectId/sections/:sectionKey/chat/documents/init-upload",
-  ...withProjectEdit,
+  ...withSectionEdit,
   initUpload
 );
 

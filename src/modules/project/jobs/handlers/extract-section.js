@@ -1,4 +1,4 @@
-import prisma from "../../../../lib/prisma.js";
+import { loadTenantContext } from "../../../../lib/tenant-context.js";
 import { composeSystemPrompt } from "../../prompt/compose.js";
 import { ensureProvider } from "../../llm/provider.js";
 import { getSection } from "../../sections/registry.js";
@@ -10,7 +10,7 @@ import { enqueueRemainingExtractors } from "../../extraction/fanout.js";
 /**
  * EXTRACT_SECTION — LLM structured extraction for one extractor section.
  *
- * @param {{ payload: { extractionRunId?: string, sectionExtractionId?: string, sectionKey?: string }, tenantId?: string, projectId?: string }} job
+ * @param {{ payload: { extractionRunId?: string, sectionExtractionId?: string, sectionKey?: string }, tenantId: string, projectId?: string }} job
  */
 export async function handleExtractSection(job) {
   const { extractionRunId, sectionExtractionId, sectionKey } = job.payload ?? {};
@@ -18,28 +18,30 @@ export async function handleExtractSection(job) {
     throw new Error("EXTRACT_SECTION payload is missing extractionRunId, sectionExtractionId, or sectionKey.");
   }
 
+  const { db } = await loadTenantContext(job.tenantId);
+
   const section = getSection(sectionKey);
   if (section.kind !== "extractor") {
     throw new Error(`Section "${sectionKey}" is not an extractor.`);
   }
 
-  const row = await prisma.sectionExtraction.findUnique({
+  const row = await db.sectionExtraction.findUnique({
     where: { id: sectionExtractionId },
   });
   if (!row) return;
   if (row.status === "SUCCEEDED") return;
 
-  const run = await prisma.extractionRun.findUnique({
+  const run = await db.extractionRun.findUnique({
     where: { id: extractionRunId },
   });
   if (!run) return;
 
-  await prisma.sectionExtraction.update({
+  await db.sectionExtraction.update({
     where: { id: sectionExtractionId },
     data: { status: "RUNNING", error: null },
   });
 
-  const documents = await prisma.document.findMany({
+  const documents = await db.document.findMany({
     where: pipelineDocumentWhere(run.projectId),
     include: { pages: { orderBy: { pageNumber: "asc" } } },
     orderBy: { createdAt: "asc" },
@@ -82,7 +84,7 @@ export async function handleExtractSection(job) {
       ? result.data.evidence
       : [];
 
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     await persistEvidence(tx, {
       projectId: run.projectId,
       sectionExtractionId,
@@ -107,7 +109,7 @@ export async function handleExtractSection(job) {
     });
   });
 
-  await accumulateRunUsage(extractionRunId, {
+  await accumulateRunUsage(db, extractionRunId, {
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
     modelId: result.modelId,
@@ -122,24 +124,27 @@ export async function handleExtractSection(job) {
 
   const projectId = job.projectId ?? run.projectId;
   await enqueueRemainingExtractors({
+    db,
     extractionRunId,
     tenantId: job.tenantId,
     projectId,
     completedSectionKey: sectionKey,
   });
 
-  await maybeEnqueueChronology(extractionRunId, job.tenantId, projectId);
+  await maybeEnqueueChronology(db, extractionRunId, job.tenantId, projectId);
 }
 
 /**
- * @param {{ payload: { sectionExtractionId?: string, extractionRunId?: string }, tenantId?: string, projectId?: string }} job
+ * @param {{ payload: { sectionExtractionId?: string, extractionRunId?: string, sectionKey?: string }, tenantId: string, projectId?: string }} job
  * @param {string} errorMessage
  */
 export async function onExtractSectionDead(job, errorMessage) {
   const { sectionExtractionId, extractionRunId } = job.payload ?? {};
+  const { db } = await loadTenantContext(job.tenantId);
+
   if (sectionExtractionId) {
     try {
-      await prisma.sectionExtraction.update({
+      await db.sectionExtraction.update({
         where: { id: sectionExtractionId },
         data: {
           status: "FAILED",
@@ -153,12 +158,14 @@ export async function onExtractSectionDead(job, errorMessage) {
 
   if (extractionRunId) {
     await enqueueRemainingExtractors({
+      db,
       extractionRunId,
       tenantId: job.tenantId,
       projectId: job.projectId,
       completedSectionKey: job.payload?.sectionKey,
     });
     await maybeEnqueueChronology(
+      db,
       extractionRunId,
       job.tenantId,
       job.projectId

@@ -35,6 +35,7 @@ const EMPTY_STRUCTURED = {
 
 /**
  * @param {{
+ *   db: object,
  *   projectId: string,
  *   sectionKey: string,
  *   userId: string,
@@ -78,6 +79,7 @@ export async function runSectionChat(input) {
   }
 
   const ctx = await loadChatContext({
+    db: input.db,
     projectId: input.projectId,
     sectionKey: input.sectionKey,
     fieldPath,
@@ -382,6 +384,7 @@ async function handleFillMissing({
   }
 
   const result = await applyChatChanges({
+    db: ctx.db,
     projectId,
     sectionKey,
     userId,
@@ -391,6 +394,7 @@ async function handleFillMissing({
 
   if (structured.sources?.length) {
     await appendFieldEvidence({
+      db: ctx.db,
       projectId,
       sectionKey,
       fieldPath,
@@ -399,7 +403,7 @@ async function handleFillMissing({
     });
   }
 
-  const latest = await requireSucceededDraft(projectId, sectionKey);
+  const latest = await requireSucceededDraft(ctx.db, projectId, sectionKey);
   return baseReply("fill_missing", {
     message: changeCountMessage(result.applied),
     sources: serializeSources(structured.sources, docs.length ? docs : allDocs(ctx)),
@@ -423,6 +427,7 @@ async function handleApplyChange({
 }) {
   if (value !== undefined && fieldPath) {
     const result = await applyChatChanges({
+      db: ctx.db,
       projectId,
       sectionKey,
       userId,
@@ -481,6 +486,7 @@ async function handleApplyChange({
   }
 
   const result = await applyChatChanges({
+    db: ctx.db,
     projectId,
     sectionKey,
     userId,

@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import prisma from "../lib/prisma.js";
 import { ensureStorage } from "../modules/project/storage/provider.js";
 import { buildDocumentKey, keyBelongsToProject } from "../modules/project/storage/keys.js";
 import {
@@ -94,11 +93,10 @@ export const initUpload = asyncHandler(async (req, res) => {
   const storage = await ensureStorage();
   const created = [];
 
-  await prisma.$transaction(async (tx) => {
+  await req.db.$transaction(async (tx) => {
     for (const file of validated) {
       const documentId = randomUUID();
       const storageKey = buildDocumentKey({
-        tenantId: req.tenant.id,
         projectId: req.project.id,
         documentId,
         filename: file.filename,
@@ -107,13 +105,12 @@ export const initUpload = asyncHandler(async (req, res) => {
       const document = await tx.document.create({
         data: {
           id: documentId,
-          tenantId: req.tenant.id,
           projectId: req.project.id,
           originalFilename: file.filename,
           mimeType: file.mimeType,
           sizeBytes: file.size,
           storageKey,
-          bucket: storage.bucket,
+          bucket: req.bucket,
           documentType: file.documentType,
           origin,
           sectionKey: chatbotSectionKey,
@@ -129,6 +126,7 @@ export const initUpload = asyncHandler(async (req, res) => {
   const uploads = [];
   for (const document of created) {
     const presigned = await storage.getPresignedPutUrl({
+      bucket: req.bucket,
       key: document.storageKey,
       mimeType: document.mimeType,
       expiresIn: Number.isFinite(PRESIGN_EXPIRES) ? PRESIGN_EXPIRES : 900,
@@ -152,11 +150,10 @@ export const initUpload = asyncHandler(async (req, res) => {
 // @access  Private (VM)
 export const completeUpload = asyncHandler(async (req, res) => {
   const { documentId } = req.params;
-  const document = await prisma.document.findFirst({
+  const document = await req.db.document.findFirst({
     where: {
       id: documentId,
       projectId: req.project.id,
-      tenantId: req.tenant.id,
     },
   });
 
@@ -165,7 +162,6 @@ export const completeUpload = asyncHandler(async (req, res) => {
   }
 
   if (!keyBelongsToProject(document.storageKey, {
-    tenantId: req.tenant.id,
     projectId: req.project.id,
   })) {
     return res.status(500).json({
@@ -183,7 +179,7 @@ export const completeUpload = asyncHandler(async (req, res) => {
   }
 
   const storage = await ensureStorage();
-  const head = await storage.headObject(document.storageKey);
+  const head = await storage.headObject(req.bucket, document.storageKey);
 
   if (!head.exists) {
     return res.status(400).json({
@@ -194,7 +190,7 @@ export const completeUpload = asyncHandler(async (req, res) => {
   }
 
   if (head.sizeBytes != null && head.sizeBytes !== document.sizeBytes) {
-    await prisma.document.update({
+    await req.db.document.update({
       where: { id: document.id },
       data: {
         status: "FAILED",
@@ -212,29 +208,34 @@ export const completeUpload = asyncHandler(async (req, res) => {
       ? req.body.checksumSha256.toLowerCase()
       : null;
 
-  const processing = await prisma.$transaction(async (tx) => {
-    const updated = await tx.document.update({
+  const processing = await req.db.document.update({
+    where: { id: document.id },
+    data: {
+      status: "PROCESSING",
+      failureReason: null,
+      uploadedAt: new Date(),
+      checksumSha256: checksum,
+    },
+  });
+
+  // The job queue is in the platform database: enqueue after the tenant write.
+  try {
+    await enqueueJob({
+      type: JOB_TYPES.EXTRACT_TEXT,
+      tenantId: req.tenant.id,
+      projectId: document.projectId,
+      payload: { documentId: document.id },
+    });
+  } catch (error) {
+    await req.db.document.update({
       where: { id: document.id },
       data: {
-        status: "PROCESSING",
-        failureReason: null,
-        uploadedAt: new Date(),
-        checksumSha256: checksum,
+        status: "FAILED",
+        failureReason: "Could not queue text extraction. Retry complete.",
       },
     });
-
-    await enqueueJob(
-      {
-        type: JOB_TYPES.EXTRACT_TEXT,
-        tenantId: document.tenantId,
-        projectId: document.projectId,
-        payload: { documentId: document.id },
-      },
-      tx
-    );
-
-    return updated;
-  });
+    throw error;
+  }
 
   res.status(202).json({
     success: true,
@@ -245,9 +246,9 @@ export const completeUpload = asyncHandler(async (req, res) => {
 
 // @desc    List documents for a project
 // @route   GET /api/projects/:projectId/documents
-// @access  Private
+// @access  Private (VM)
 export const listDocuments = asyncHandler(async (req, res) => {
-  const documents = await prisma.document.findMany({
+  const documents = await req.db.document.findMany({
     where: { projectId: req.project.id },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { pages: true } } },
@@ -264,10 +265,10 @@ export const listDocuments = asyncHandler(async (req, res) => {
 
 // @desc    Get one document (including page text once READY)
 // @route   GET /api/projects/:projectId/documents/:documentId
-// @access  Private
+// @access  Private (VM)
 export const getDocument = asyncHandler(async (req, res) => {
   const includeText = req.query.includeText === "true";
-  const document = await prisma.document.findFirst({
+  const document = await req.db.document.findFirst({
     where: {
       id: req.params.documentId,
       projectId: req.project.id,
@@ -294,9 +295,9 @@ export const getDocument = asyncHandler(async (req, res) => {
 
 // @desc    Presigned GET for authorised preview / download
 // @route   GET /api/projects/:projectId/documents/:documentId/download
-// @access  Private
+// @access  Private (VM)
 export const downloadDocument = asyncHandler(async (req, res) => {
-  const document = await prisma.document.findFirst({
+  const document = await req.db.document.findFirst({
     where: {
       id: req.params.documentId,
       projectId: req.project.id,
@@ -316,6 +317,7 @@ export const downloadDocument = asyncHandler(async (req, res) => {
 
   const storage = await ensureStorage();
   const download = await storage.getPresignedGetUrl({
+    bucket: req.bucket,
     key: document.storageKey,
     filename: document.originalFilename,
   });
@@ -332,7 +334,7 @@ export const downloadDocument = asyncHandler(async (req, res) => {
 // @route   DELETE /api/projects/:projectId/documents/:documentId
 // @access  Private (VM)
 export const deleteDocument = asyncHandler(async (req, res) => {
-  const document = await prisma.document.findFirst({
+  const document = await req.db.document.findFirst({
     where: {
       id: req.params.documentId,
       projectId: req.project.id,
@@ -345,12 +347,12 @@ export const deleteDocument = asyncHandler(async (req, res) => {
 
   const storage = await ensureStorage();
   try {
-    await storage.deleteObject(document.storageKey);
+    await storage.deleteObject(req.bucket, document.storageKey);
   } catch (error) {
     console.warn(`Could not delete object ${document.storageKey}:`, error.message);
   }
 
-  await prisma.document.delete({ where: { id: document.id } });
+  await req.db.document.delete({ where: { id: document.id } });
 
   res.status(200).json({
     success: true,

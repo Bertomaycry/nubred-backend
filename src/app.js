@@ -10,6 +10,8 @@ import webhookRoutes from "./routes/webhook.routes.js";
 import blogRoutes from "./routes/blog.routes.js";
 import earlyAdopterRoutes from "./routes/early-adopter.routes.js";
 import projectRoutes from "./routes/project.routes.js";
+import adminClientRoutes from "./routes/admin-client.routes.js";
+import usageRoutes from "./routes/usage.routes.js";
 
 const app = express();
 
@@ -61,6 +63,8 @@ app.use("/api/chat-history", chatRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/early-adopters", earlyAdopterRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/admin/clients", adminClientRoutes);
+app.use("/api/usage", usageRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });

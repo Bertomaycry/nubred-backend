@@ -1,6 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import prisma from "../lib/prisma.js";
 import { startExtractionRun } from "../modules/project/extraction/start.js";
+import { loadEnabledModules } from "../middlewares/tenant.middleware.js";
 
 function serializeSection(section, { includePayload = false } = {}) {
   return {
@@ -61,8 +61,10 @@ const sectionIncludeWithPayload = {
 export const startExtraction = asyncHandler(async (req, res) => {
   try {
     const run = await startExtractionRun({
+      db: req.db,
       projectId: req.project.id,
       tenantId: req.tenant.id,
+      enabledModules: await loadEnabledModules(req.tenant.id),
     });
     res.status(202).json({
       success: true,
@@ -91,7 +93,7 @@ export const startExtraction = asyncHandler(async (req, res) => {
 // @route   GET /api/projects/:projectId/extractions
 // @access  Private
 export const listExtractions = asyncHandler(async (req, res) => {
-  const runs = await prisma.extractionRun.findMany({
+  const runs = await req.db.extractionRun.findMany({
     where: { projectId: req.project.id },
     orderBy: { createdAt: "desc" },
     include: { sections: sectionInclude },
@@ -109,7 +111,7 @@ export const listExtractions = asyncHandler(async (req, res) => {
 // @access  Private
 export const getLatestExtraction = asyncHandler(async (req, res) => {
   const includePayload = req.query.includePayload === "true";
-  const run = await prisma.extractionRun.findFirst({
+  const run = await req.db.extractionRun.findFirst({
     where: { projectId: req.project.id },
     orderBy: { createdAt: "desc" },
     include: {
@@ -141,7 +143,7 @@ export const getLatestExtraction = asyncHandler(async (req, res) => {
 // @access  Private
 export const getExtraction = asyncHandler(async (req, res) => {
   const includePayload = req.query.includePayload !== "false";
-  const run = await prisma.extractionRun.findFirst({
+  const run = await req.db.extractionRun.findFirst({
     where: {
       id: req.params.extractionRunId,
       projectId: req.project.id,
