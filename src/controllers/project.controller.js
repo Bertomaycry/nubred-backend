@@ -1,45 +1,19 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import prisma from "../lib/prisma.js";
+import { PROJECT_CREATOR_ROLES } from "../modules/client/roles.js";
+import { buildSectionAccess } from "../modules/project/access/matrix.js";
+import { projectRoleFor } from "../middlewares/project.middleware.js";
 
-/**
- * Auto-join the current user as a tenant member and VARIETY_MANAGER of the project.
- */
-async function ensureCreatorMembership(tenantId, projectId, user) {
-  await prisma.tenantMember.upsert({
-    where: { tenantId_userId: { tenantId, userId: user.id } },
-    update: {},
-    create: { tenantId, userId: user.id },
-  });
-
-  await prisma.projectMember.upsert({
-    where: {
-      projectId_invitedEmail: {
-        projectId,
-        invitedEmail: user.email,
-      },
-    },
-    update: {
-      userId: user.id,
-      role: "VARIETY_MANAGER",
-      state: "ACTIVE",
-      acceptedAt: new Date(),
-    },
-    create: {
-      projectId,
-      userId: user.id,
-      invitedEmail: user.email,
-      role: "VARIETY_MANAGER",
-      state: "ACTIVE",
-      invitedById: user.id,
-      acceptedAt: new Date(),
-    },
-  });
-}
-
-// @desc    Create a draft project in the current tenant
+// @desc    Create a draft project in the current client workspace
 // @route   POST /api/projects
-// @access  Private
+// @access  Private (client owner / master project manager / project manager)
 export const createProject = asyncHandler(async (req, res) => {
+  if (!PROJECT_CREATOR_ROLES.includes(req.tenantUser.role)) {
+    return res.status(403).json({
+      success: false,
+      message: "Your role cannot create projects.",
+    });
+  }
+
   const name = String(req.body?.name ?? "").trim();
   if (!name) {
     return res.status(400).json({
@@ -48,54 +22,84 @@ export const createProject = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!req.tenantMembership) {
-    const existingMembers = await prisma.tenantMember.count({
-      where: { tenantId: req.tenant.id },
-    });
-    if (existingMembers > 0) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not a member of this organisation.",
-      });
-    }
-  }
+  const email = String(req.user.email ?? "").toLowerCase();
 
-  const project = await prisma.project.create({
-    data: {
-      tenantId: req.tenant.id,
-      name,
-      status: "DRAFT",
-      createdById: req.user.id,
-      primarySpeciesCommon: req.body?.primarySpeciesCommon ?? null,
-      primarySpeciesBotanical: req.body?.primarySpeciesBotanical ?? null,
-    },
+  const result = await req.db.$transaction(async (tx) => {
+    // Serialise creates so two requests cannot both squeeze under the cap.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('nubred_project_create'))`;
+
+    const count = await tx.project.count();
+    if (count >= req.tenant.maxProjects) {
+      return { limitReached: true };
+    }
+
+    const project = await tx.project.create({
+      data: {
+        name,
+        status: "DRAFT",
+        createdById: req.user.id,
+        primarySpeciesCommon: req.body?.primarySpeciesCommon ?? null,
+        primarySpeciesBotanical: req.body?.primarySpeciesBotanical ?? null,
+      },
+    });
+
+    await tx.projectMember.create({
+      data: {
+        projectId: project.id,
+        userId: req.user.id,
+        invitedEmail: email,
+        role: "VARIETY_MANAGER",
+        state: "ACTIVE",
+        invitedById: req.user.id,
+        acceptedAt: new Date(),
+      },
+    });
+
+    return { project };
   });
 
-  await ensureCreatorMembership(req.tenant.id, project.id, req.user);
+  if (result.limitReached) {
+    return res.status(409).json({
+      success: false,
+      message: `Your organisation has reached its limit of ${req.tenant.maxProjects} projects.`,
+    });
+  }
 
   res.status(201).json({
     success: true,
     message: "Project created",
-    project,
+    project: result.project,
   });
 });
 
-// @desc    List projects for the current tenant that the user can see
+// @desc    List projects the user created, belongs to, or is invited to
 // @route   GET /api/projects
 // @access  Private
 export const listProjects = asyncHandler(async (req, res) => {
-  const projects = await prisma.project.findMany({
+  const email = String(req.user.email ?? "").toLowerCase();
+  const mine = [{ userId: req.user.id }, { invitedEmail: email }];
+
+  const rows = await req.db.project.findMany({
     where: {
-      tenantId: req.tenant.id,
-      OR: [
-        { createdById: req.user.id },
-        { members: { some: { userId: req.user.id } } },
-      ],
+      OR: [{ createdById: req.user.id }, { members: { some: { OR: mine } } }],
     },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { documents: true } },
+      members: { where: { OR: mine }, take: 1 },
     },
+  });
+
+  const projects = rows.map(({ members, ...project }) => {
+    const membership = members[0] ?? null;
+    const creator = project.createdById === req.user.id;
+    return {
+      ...project,
+      myRole: creator ? "VARIETY_MANAGER" : membership?.role ?? null,
+      isFieldObserver: membership?.isFieldObserver ?? false,
+      // PENDING until the invitation is accepted (Doc A).
+      myState: creator ? "ACTIVE" : membership?.state ?? null,
+    };
   });
 
   res.status(200).json({
@@ -107,15 +111,15 @@ export const listProjects = asyncHandler(async (req, res) => {
 
 // @desc    Get one project
 // @route   GET /api/projects/:projectId
-// @access  Private
+// @access  Private (creator / active member)
 export const getProject = asyncHandler(async (req, res) => {
   const [documentCounts, phases] = await Promise.all([
-    prisma.document.groupBy({
+    req.db.document.groupBy({
       by: ["status"],
       where: { projectId: req.project.id },
       _count: { _all: true },
     }),
-    prisma.phase.findMany({
+    req.db.phase.findMany({
       where: { projectId: req.project.id },
       orderBy: { sortOrder: "asc" },
       select: {
@@ -130,9 +134,14 @@ export const getProject = asyncHandler(async (req, res) => {
     }),
   ]);
 
+  const { role, isFieldObserver } = projectRoleFor(req);
+
   res.status(200).json({
     success: true,
     project: req.project,
+    myRole: role,
+    isFieldObserver,
+    sectionAccess: buildSectionAccess(role, { isFieldObserver }),
     documentsByStatus: Object.fromEntries(
       documentCounts.map((row) => [row.status, row._count._all])
     ),

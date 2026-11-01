@@ -1,8 +1,8 @@
 /**
  * S3 object key helpers.
  *
- * Layout (one bucket per environment, prefix per tenant):
- *   tenants/{tenantId}/projects/{projectId}/documents/{documentId}/{filename}
+ * Layout (one private bucket per client, nubred-{slug}):
+ *   projects/{projectId}/documents/{documentId}/{filename}
  *
  * The same layout works for MinIO, Hetzner Object Storage, and AWS S3.
  */
@@ -25,13 +25,11 @@ export function sanitizeFilename(name) {
 }
 
 /**
- * @param {{ tenantId: string, projectId: string, documentId: string, filename: string }} params
+ * @param {{ projectId: string, documentId: string, filename: string }} params
  * @returns {string}
  */
-export function buildDocumentKey({ tenantId, projectId, documentId, filename }) {
+export function buildDocumentKey({ projectId, documentId, filename }) {
   return [
-    "tenants",
-    tenantId,
     "projects",
     projectId,
     "documents",
@@ -41,12 +39,12 @@ export function buildDocumentKey({ tenantId, projectId, documentId, filename }) 
 }
 
 /**
- * Reject keys that do not belong to the given tenant/project (path traversal / mix-up).
+ * Reject keys that do not belong to the given project (path traversal / mix-up).
  * @param {string} storageKey
- * @param {{ tenantId: string, projectId: string }} scope
+ * @param {{ projectId: string }} scope
  * @returns {boolean}
  */
-export function keyBelongsToProject(storageKey, { tenantId, projectId }) {
-  const prefix = `tenants/${tenantId}/projects/${projectId}/documents/`;
+export function keyBelongsToProject(storageKey, { projectId }) {
+  const prefix = `projects/${projectId}/documents/`;
   return typeof storageKey === "string" && storageKey.startsWith(prefix);
 }

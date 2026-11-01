@@ -13,12 +13,13 @@ Shared request headers (every call except the MinIO PUT)
 --------------------------------------------------------
   Authorization: Bearer <Clerk session JWT>     // required
   Content-Type: application/json                // required for POST bodies
-  X-Tenant-Slug: <tenant slug>                  // strongly recommended
+  X-Tenant-Slug: <tenant slug>                  // only needed if the user belongs to several clients
 
 Notes:
   - Auth is Clerk. Send the same Bearer token used on existing /api/auth and /api/profile routes.
-  - X-Tenant-Slug identifies the organisation. On localhost, if omitted, the backend defaults to "dev" and will create that tenant on first use.
-  - Production: always send X-Tenant-Slug (or use a tenant subdomain). Do not rely on the default.
+  - X-Tenant-Slug is a selector only; it never grants access. The backend authorises from the user's tenant_users row (client added by a NuBred admin).
+  - One membership: the header may be omitted. Several: omitting it returns 400 "Select a workspace."
+  - Not a member of that slug, or client restricted / not ready: 403.
   - CORS allows Authorization and X-Tenant-Slug. Frontend origin must be one of:
       http://localhost:5173
       https://preview.nubred.com

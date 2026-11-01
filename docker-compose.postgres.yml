@@ -1,0 +1,21 @@
+# Local Postgres for development (platform DB + per-client databases).
+# Usage: npm run db:up
+# Then in .env:
+#   DATABASE_URL=postgresql://nubred:nubred@localhost:5432/nubred
+# Client databases (nubred_{slug}) are created next to it on the same server.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: nubred-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: nubred
+      POSTGRES_PASSWORD: nubred
+      POSTGRES_DB: nubred
+    volumes:
+      - nubred_pg_data:/var/lib/postgresql/data
+
+volumes:
+  nubred_pg_data:

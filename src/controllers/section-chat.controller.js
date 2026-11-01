@@ -29,6 +29,7 @@ function withRules(payload) {
 export const postSectionChat = asyncHandler(async (req, res) => {
   try {
     const result = await runSectionChat({
+      db: req.db,
       projectId: req.project.id,
       sectionKey: req.params.sectionKey,
       userId: req.user.id,

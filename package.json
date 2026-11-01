@@ -7,6 +7,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "prisma:generate": "prisma generate && prisma generate --schema prisma/tenant/schema.prisma",
+    "migrate:tenants": "node scripts/migrate-tenants.js",
+    "db:up": "docker compose -f docker-compose.postgres.yml up -d",
+    "db:down": "docker compose -f docker-compose.postgres.yml down",
     "minio:up": "docker compose -f docker-compose.minio.yml up -d",
     "minio:down": "docker compose -f docker-compose.minio.yml down",
     "test": "set NODE_OPTIONS=--experimental-vm-modules && jest",

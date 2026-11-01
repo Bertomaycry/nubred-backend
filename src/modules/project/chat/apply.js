@@ -1,4 +1,3 @@
-import prisma from "../../../lib/prisma.js";
 import { getAtPath } from "../review/path.js";
 import { patchSectionField } from "../review/patch-field.js";
 import { requireSucceededDraft } from "../review/load.js";
@@ -14,6 +13,7 @@ import { downstreamWarning } from "./context.js";
  * still resolve a conflict by restating the current value).
  */
 export async function applyChatChanges({
+  db,
   projectId,
   sectionKey,
   userId,
@@ -34,9 +34,10 @@ export async function applyChatChanges({
     const value = "value" in change ? change.value : coerceLlmValue(change.new_value ?? change.newValue);
 
     try {
-      const before = await requireSucceededDraft(projectId, sectionKey);
+      const before = await requireSucceededDraft(db, projectId, sectionKey);
       const previousValue = getAtPath(before.payload, fieldPath);
       const { section } = await patchSectionField({
+        db,
         projectId,
         sectionKey,
         fieldPath,
@@ -75,18 +76,19 @@ export async function applyChatChanges({
     );
   }
 
-  const warning = await downstreamWarning(projectId, sectionKey);
+  const warning = await downstreamWarning(db, projectId, sectionKey);
   return { applied, issues, section: lastSection, warning };
 }
 
 export async function appendFieldEvidence({
+  db,
   projectId,
   sectionKey,
   fieldPath,
   sources,
   documents,
 }) {
-  const row = await requireSucceededDraft(projectId, sectionKey);
+  const row = await requireSucceededDraft(db, projectId, sectionKey);
   const byName = new Map(
     (documents ?? []).map((doc) => [doc.originalFilename.toLowerCase(), doc])
   );
@@ -110,7 +112,7 @@ export async function appendFieldEvidence({
 
   if (items.length === 0) return;
 
-  await prisma.evidenceItem.createMany({ data: items });
+  await db.evidenceItem.createMany({ data: items });
 
   const fieldMeta = {
     ...(row.fieldMeta && typeof row.fieldMeta === "object" ? row.fieldMeta : {}),
@@ -125,7 +127,7 @@ export async function appendFieldEvidence({
     confidence: existing.confidence === "MISSING" ? "PROVISIONAL" : existing.confidence ?? "PROVISIONAL",
     origin: "CHATBOT",
   };
-  await prisma.sectionExtraction.update({
+  await db.sectionExtraction.update({
     where: { id: row.id },
     data: { fieldMeta },
   });

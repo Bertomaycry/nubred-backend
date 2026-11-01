@@ -11,6 +11,7 @@ RUN echo "fetch-retries=5" >> /root/.npmrc \
 COPY package*.json ./
 COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma/migrations ./prisma/migrations
+COPY prisma/tenant ./prisma/tenant
 
 # Cap Node heap to prevent OOM kill during install
 ENV NODE_OPTIONS="--max-old-space-size=1024"
@@ -20,7 +21,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund \
     || (cat /root/.npm/_logs/*.log 2>/dev/null && exit 1)
 
-RUN npx prisma generate
+RUN npx prisma generate && npx prisma generate --schema prisma/tenant/schema.prisma
 
 # Stage 2: Production Runtime
 FROM node:20-slim AS runner
@@ -36,10 +37,12 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
 COPY --from=builder /app/prisma/migrations ./prisma/migrations
+COPY --from=builder /app/prisma/tenant ./prisma/tenant
 COPY src ./src
+COPY scripts ./scripts
 COPY ecosystem.config.cjs ./
 
 EXPOSE 8080
 
-# Apply pending migrations once, then start the app. exec keeps pm2 as PID 1.
-CMD ["sh", "-c", "npx prisma migrate deploy && exec pm2-runtime start ecosystem.config.cjs"]
+# Apply pending platform + client-database migrations once, then start the app. exec keeps pm2 as PID 1.
+CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/migrate-tenants.js && exec pm2-runtime start ecosystem.config.cjs"]

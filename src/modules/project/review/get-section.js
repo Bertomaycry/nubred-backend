@@ -1,4 +1,3 @@
-import prisma from "../../../lib/prisma.js";
 import { evaluateSectionRules } from "./evaluate-rules.js";
 import {
   getLatestSectionRow,
@@ -8,9 +7,9 @@ import {
   serializeOverride,
 } from "./load.js";
 
-export async function getSectionReview(projectId, sectionKey) {
+export async function getSectionReview(db, projectId, sectionKey) {
   const section = requireSectionKey(sectionKey);
-  const row = await getLatestSectionRow(projectId, sectionKey);
+  const row = await getLatestSectionRow(db, projectId, sectionKey);
 
   if (!row) {
     throw Object.assign(
@@ -22,10 +21,10 @@ export async function getSectionReview(projectId, sectionKey) {
   }
 
   const [confirmation, overrides] = await Promise.all([
-    prisma.sectionConfirmation.findUnique({
+    db.sectionConfirmation.findUnique({
       where: { projectId_sectionKey: { projectId, sectionKey } },
     }),
-    prisma.fieldOverride.findMany({
+    db.fieldOverride.findMany({
       where: { projectId, sectionKey },
       orderBy: { createdAt: "desc" },
       take: 200,

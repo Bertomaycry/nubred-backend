@@ -5,8 +5,12 @@ import {
   HeadObjectCommand,
   DeleteObjectCommand,
   CreateBucketCommand,
+  DeleteBucketCommand,
   HeadBucketCommand,
+  ListBucketsCommand,
+  ListObjectsV2Command,
   PutBucketCorsCommand,
+  PutPublicAccessBlockCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { StorageProvider } from "./provider.js";
@@ -40,12 +44,17 @@ function createClient(endpoint) {
   });
 }
 
+function isNotFound(error) {
+  const status = error?.$metadata?.httpStatusCode;
+  return status === 404 || error?.name === "NotFound" || error?.Code === "NoSuchBucket";
+}
+
 /**
  * S3-compatible storage: MinIO (dev), Hetzner Object Storage, AWS S3, R2.
+ * One private bucket per client; the bucket is an argument of every call.
  *
  * Env:
- *   AWS_S3_BUCKET              required
- *   AWS_ACCESS_KEY_ID          required
+ *   AWS_ACCESS_KEY_ID          required (needs permission to create buckets)
  *   AWS_SECRET_ACCESS_KEY      required
  *   AWS_REGION                 default us-east-1 (MinIO accepts any)
  *   AWS_S3_ENDPOINT            set for MinIO / Hetzner / R2; omit for native AWS
@@ -56,7 +65,6 @@ function createClient(endpoint) {
 export class S3StorageProvider extends StorageProvider {
   constructor() {
     super();
-    this._bucket = requiredEnv("AWS_S3_BUCKET");
     this._internalEndpoint = process.env.AWS_S3_ENDPOINT || "";
     this._publicEndpoint =
       process.env.AWS_S3_PUBLIC_ENDPOINT || this._internalEndpoint;
@@ -68,35 +76,67 @@ export class S3StorageProvider extends StorageProvider {
         : this._client;
   }
 
-  get bucket() {
-    return this._bucket;
-  }
-
   async init() {
     try {
-      await this._client.send(new HeadBucketCommand({ Bucket: this._bucket }));
+      await this._client.send(new ListBucketsCommand({}));
     } catch (error) {
-      const status = error?.$metadata?.httpStatusCode;
-      if (status === 404 || error.name === "NotFound" || error.Code === "NoSuchBucket") {
-        await this._client.send(new CreateBucketCommand({ Bucket: this._bucket }));
-        console.log(`📦 Created storage bucket "${this._bucket}"`);
-      } else if (status === 403) {
-        throw new Error(
-          `Storage credentials cannot access bucket "${this._bucket}". Check AWS_ACCESS_KEY_ID / AWS_S3_BUCKET.`
-        );
-      } else {
-        throw new Error(
-          `Cannot reach object storage (${error.message}). ` +
-            `Is MinIO running? Try: npm run minio:up`
-        );
-      }
+      throw new Error(
+        `Cannot reach object storage (${error.message}). ` +
+          `Is MinIO running? Try: npm run minio:up`
+      );
     }
-
-    await this._applyCors();
-    console.log(`📦 Storage ready (bucket: ${this._bucket})`);
+    console.log("📦 Storage ready");
   }
 
-  async _applyCors() {
+  async bucketExists(bucket) {
+    try {
+      await this._client.send(new HeadBucketCommand({ Bucket: bucket }));
+      return true;
+    } catch (error) {
+      if (isNotFound(error)) return false;
+      // 403: the name exists but belongs to someone else — treat as taken.
+      if (error?.$metadata?.httpStatusCode === 403) return true;
+      throw error;
+    }
+  }
+
+  async createBucket(bucket) {
+    if (await this.bucketExists(bucket)) {
+      throw new Error(`Bucket "${bucket}" already exists.`);
+    }
+    await this._client.send(new CreateBucketCommand({ Bucket: bucket }));
+
+    // Buckets are private by default. Block public access where the gateway
+    // supports it (AWS S3); MinIO and some gateways do not implement this call.
+    try {
+      await this._client.send(
+        new PutPublicAccessBlockCommand({
+          Bucket: bucket,
+          PublicAccessBlockConfiguration: {
+            BlockPublicAcls: true,
+            IgnorePublicAcls: true,
+            BlockPublicPolicy: true,
+            RestrictPublicBuckets: true,
+          },
+        })
+      );
+    } catch {
+      // Not supported by this gateway; the bucket has no public policy anyway.
+    }
+
+    await this._applyCors(bucket);
+  }
+
+  async deleteBucketIfEmpty(bucket) {
+    const listed = await this._client.send(
+      new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 1 })
+    );
+    if ((listed.KeyCount ?? listed.Contents?.length ?? 0) > 0) return false;
+    await this._client.send(new DeleteBucketCommand({ Bucket: bucket }));
+    return true;
+  }
+
+  async _applyCors(bucket) {
     const origins = (process.env.NUBRED_STORAGE_CORS_ORIGINS || "")
       .split(",")
       .map((s) => s.trim())
@@ -110,12 +150,13 @@ export class S3StorageProvider extends StorageProvider {
             "http://localhost:3000",
             "https://preview.nubred.com",
             "https://governance.nubred.com",
+            `https://*.${process.env.NUBRED_TENANT_HOST_SUFFIX || "gov.nubred.com"}`,
           ];
 
     try {
       await this._client.send(
         new PutBucketCorsCommand({
-          Bucket: this._bucket,
+          Bucket: bucket,
           CORSConfiguration: {
             CORSRules: [
               {
@@ -132,13 +173,13 @@ export class S3StorageProvider extends StorageProvider {
     } catch (error) {
       // Native S3 always supports this; some gateways may not. Uploads still work
       // if the bucket already has CORS configured in the console.
-      console.warn(`⚠️  Could not set bucket CORS: ${error.message}`);
+      console.warn(`⚠️  Could not set CORS on bucket "${bucket}": ${error.message}`);
     }
   }
 
-  async getPresignedPutUrl({ key, mimeType, expiresIn = DEFAULT_EXPIRES }) {
+  async getPresignedPutUrl({ bucket, key, mimeType, expiresIn = DEFAULT_EXPIRES }) {
     const command = new PutObjectCommand({
-      Bucket: this._bucket,
+      Bucket: bucket,
       Key: key,
       ContentType: mimeType,
     });
@@ -151,9 +192,9 @@ export class S3StorageProvider extends StorageProvider {
     };
   }
 
-  async getPresignedGetUrl({ key, filename, expiresIn = DEFAULT_EXPIRES }) {
+  async getPresignedGetUrl({ bucket, key, filename, expiresIn = DEFAULT_EXPIRES }) {
     const command = new GetObjectCommand({
-      Bucket: this._bucket,
+      Bucket: bucket,
       Key: key,
       ResponseContentDisposition: filename
         ? `inline; filename="${filename.replace(/"/g, "")}"`
@@ -163,10 +204,10 @@ export class S3StorageProvider extends StorageProvider {
     return { url, method: "GET", expiresIn };
   }
 
-  async headObject(key) {
+  async headObject(bucket, key) {
     try {
       const result = await this._client.send(
-        new HeadObjectCommand({ Bucket: this._bucket, Key: key })
+        new HeadObjectCommand({ Bucket: bucket, Key: key })
       );
       return {
         exists: true,
@@ -182,16 +223,16 @@ export class S3StorageProvider extends StorageProvider {
     }
   }
 
-  async getObjectBuffer(key) {
+  async getObjectBuffer(bucket, key) {
     const result = await this._client.send(
-      new GetObjectCommand({ Bucket: this._bucket, Key: key })
+      new GetObjectCommand({ Bucket: bucket, Key: key })
     );
     return Buffer.from(await result.Body.transformToByteArray());
   }
 
-  async deleteObject(key) {
+  async deleteObject(bucket, key) {
     await this._client.send(
-      new DeleteObjectCommand({ Bucket: this._bucket, Key: key })
+      new DeleteObjectCommand({ Bucket: bucket, Key: key })
     );
   }
 }

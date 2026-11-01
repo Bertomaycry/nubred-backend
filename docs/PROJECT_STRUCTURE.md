@@ -186,7 +186,7 @@ Object storage for confidential project documents. Callers never talk to MinIO/H
 |------|------|
 | `provider.js` | `StorageProvider` interface + `initStorage()` / `getStorage()` |
 | `s3.provider.js` | S3-compatible implementation (MinIO, Hetzner Object Storage, AWS S3, R2) |
-| `keys.js` | Object key layout: `tenants/{tenantId}/projects/{projectId}/documents/{documentId}/{filename}` |
+| `keys.js` | Object key layout inside the client's own bucket: `projects/{projectId}/documents/{documentId}/{filename}` |
 | `allowed.js` | MIME allow-list, max size, `documentType` enum |
 
 **Switching from MinIO to Hetzner OS:** change `AWS_S3_ENDPOINT`, region, bucket, and credentials in `.env`. No code change. Leave `NUBRED_STORAGE_PROVIDER=s3`.
@@ -195,12 +195,12 @@ Object storage for confidential project documents. Callers never talk to MinIO/H
 
 ### Upload API (Step 2)
 
-Mounted at `/api/projects`. Send Clerk `Authorization` and `X-Tenant-Slug` (defaults to `dev` on localhost).
+Mounted at `/api/projects`. Send Clerk `Authorization`. `X-Tenant-Slug` only selects the workspace when the user belongs to several clients; access always comes from `tenant_users`.
 
 | Method | Path | Who |
 |--------|------|-----|
-| POST | `/api/projects` | Authenticated user (bootstraps tenant if empty) |
-| GET | `/api/projects` | Tenant member |
+| POST | `/api/projects` | Client user with role owner / master_project_manager / project_manager (409 over `maxProjects`) |
+| GET | `/api/projects` | Client user |
 | GET | `/api/projects/:projectId` | Project member / creator |
 | POST | `/api/projects/:projectId/documents/init-upload` | Variety Manager |
 | POST | `/api/projects/:projectId/documents/:documentId/complete` | Variety Manager |
@@ -355,7 +355,7 @@ Step 1 of Project Creation. Enums match the Zod constants in `src/modules/projec
 
 | Group | Models |
 |-------|--------|
-| Tenant isolation | `Tenant`, `TenantMember` — subdomain `companyone.nubred.com` maps to `Tenant.slug` |
+| Tenant isolation | Database per client (`nubred_{slug}`, schema `prisma/tenant/schema.prisma`) + bucket per client. Platform DB holds `Tenant`, `TenantUser`, `TenantModule`, usage ledgers, `Job` (see below) |
 | Project & actors | `Project`, `ProjectMember` (project-scoped role + Active/Pending), `Farm`, `Plot` |
 | Documents | `Document` (S3 `storageKey`, never a public URL), `DocumentPage` (text + page number for Why Button offsets) |
 | Provenance | `ExtractionRun`, `SectionExtraction`, `EvidenceItem`, `FieldOverride`, `SectionConfirmation` |
@@ -363,12 +363,27 @@ Step 1 of Project Creation. Enums match the Zod constants in `src/modules/projec
 | Registry | `Species`, `ParameterDefinition` (Level 1/2; Level 3 is `ProtocolParameter.isCustom`) |
 | Activation | `FieldObserverAssignment` (VM assigns observers at activation — multi-farm) |
 | Frozen UI, tables live | `ProjectOverview`, `SupplyChainActor`/`Edge`, `IpRight` + PBR/Patent/Trademark children, `TodoTask`, `Quarantine` |
-| Queue | `Job` — `EXTRACT_TEXT`, `EXTRACT_SECTION`, `DERIVE_CHRONOLOGY` |
+| Queue | `Job` (platform DB, carries `tenantId`) — `EXTRACT_TEXT`, `EXTRACT_SECTION`, `DERIVE_CHRONOLOGY` |
+
+Everything above except Queue lives in the **tenant** schema. User columns (`createdById`, `userId`, ...) hold the platform `users.id` with no foreign key.
+
+### Client management (admin)
+
+Spec: [`NuBred_Client_Module_Backend_Guide.html`](./NuBred_Client_Module_Backend_Guide.html). Code: `src/modules/client/` (modules, roles, slug, zod schema, `provision.js`, `update.js`, `usage.js`, `serialize.js`), `src/controllers/admin-client.controller.js` (`/api/admin/clients`), `usage.controller.js` (`POST /api/usage/heartbeat`), `llm/usage.js` (`recordAiUsage`, not wired yet).
+
+| Prisma schema | Client | Migrations |
+|---|---|---|
+| `prisma/schema.prisma` | `@prisma/client` (platform) | `npx prisma migrate deploy` |
+| `prisma/tenant/schema.prisma` | `node_modules/.prisma/tenant-client` via `src/lib/tenant-prisma.js` | `npm run migrate:tenants` (every ready client DB) |
+
+`npm run prisma:generate` builds both. `npm run db:up` starts local Postgres (`docker-compose.postgres.yml`).
+
+Request path: `attachTenant` (`tenant.middleware.js`) resolves `tenant_users` → `req.tenant`, `req.db`, `req.bucket` on every request; `requireModule(id)` reads `tenant_modules` fresh.
 
 **Deferred (runtime observation, not extracted from documents):** `ObservationSession`, `ObservationValue`, `GenotypePerformance`, `AgronomicOperation`.
 
-**S3 key layout (one bucket per environment, prefix per tenant):**
-`tenants/{tenantId}/projects/{projectId}/documents/{documentId}/{filename}`
+**S3 layout (one private bucket per client, `nubred-{slug}`):**
+`projects/{projectId}/documents/{documentId}/{filename}`
 
 Uploads use presigned PUT: `init-upload` creates a `Document` in `PENDING_UPLOAD`, frontend PUTs to S3, `complete-upload` verifies the object and queues text extraction. Cloudinary stays for blog images only.
 
@@ -383,13 +398,14 @@ Add these to `.env` and `.env.sample`:
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Model to use. Free-tier default; paid quality is `gemini-3.6-flash` (`gemini-2.0-flash` is retired) |
 | `GEMINI_RPM_LIMIT` | `12` | Requests per minute cap (free Lite = 15 RPM; stay under) |
 | `AWS_REGION` | — | S3 region (e.g. `eu-central-1`) |
-| `AWS_S3_BUCKET` | — | Private documents bucket |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | — | IAM credentials for the backend |
 | `AWS_S3_ENDPOINT` | empty for AWS S3 | MinIO: `http://localhost:9000`. Hetzner: your cluster host |
 | `AWS_S3_PUBLIC_ENDPOINT` | same as endpoint | Browser-facing host if it differs from `AWS_S3_ENDPOINT` |
 | `AWS_S3_FORCE_PATH_STYLE` | true when endpoint set | `false` for native AWS S3 |
 | `NUBRED_STORAGE_PROVIDER` | `s3` | Currently only `s3` (S3-compatible) |
-| `NUBRED_DEFAULT_TENANT_SLUG` | `dev` | Used when Host has no tenant subdomain |
+| `NUBRED_TENANT_HOST_SUFFIX` | `gov.nubred.com` | Client workspace host `{slug}.{suffix}` (invite link, bucket CORS) |
+| `NUBRED_TENANT_DATABASE_URL` | `DATABASE_URL` | Server for client DBs, if not the platform server |
+| `NUBRED_TENANT_DB_CONNECTION_LIMIT` | `5` | Pool size per client DB |
 | `NUBRED_MAX_UPLOAD_BYTES` | `52428800` | 50 MB default |
 | `NUBRED_JOB_POLL_MS` | `1000` | Worker poll interval |
 | `NUBRED_JOB_CONCURRENCY` | `3` | Jobs in parallel after contract finishes. Set `1` if large contracts hit the 250K TPM cap |

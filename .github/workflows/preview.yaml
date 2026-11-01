@@ -34,7 +34,7 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: npm run prisma:generate
 
       # The previous test step has been replaced with a direct application start, as requested.
       - name: Start Application
@@ -122,7 +122,7 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: npm run prisma:generate
 
       - name: Create disposable databases
         env:

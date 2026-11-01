@@ -42,7 +42,11 @@ function evaluateDraft(row) {
 // @access  Private (viewer)
 export const getSection = asyncHandler(async (req, res) => {
   try {
-    const review = await getSectionReview(req.project.id, req.params.sectionKey);
+    const review = await getSectionReview(
+      req.db,
+      req.project.id,
+      req.params.sectionKey
+    );
     res.status(200).json({
       success: true,
       ...review,
@@ -59,6 +63,7 @@ export const getSection = asyncHandler(async (req, res) => {
 export const patchField = asyncHandler(async (req, res) => {
   try {
     const { section } = await patchSectionField({
+      db: req.db,
       projectId: req.project.id,
       sectionKey: req.params.sectionKey,
       fieldPath: req.body?.fieldPath,
@@ -84,6 +89,7 @@ export const patchField = asyncHandler(async (req, res) => {
 export const patchSectionReviewState = asyncHandler(async (req, res) => {
   try {
     const section = await patchReviewState({
+      db: req.db,
       projectId: req.project.id,
       sectionKey: req.params.sectionKey,
       patch: req.body,
@@ -106,6 +112,7 @@ export const patchSectionReviewState = asyncHandler(async (req, res) => {
 export const confirmSectionHandler = asyncHandler(async (req, res) => {
   try {
     const { confirmation, evaluation } = await confirmSection({
+      db: req.db,
       projectId: req.project.id,
       sectionKey: req.params.sectionKey,
       userId: req.user.id,

@@ -3,7 +3,7 @@ POST /api/projects
 Request:
   Auth: required (Clerk Bearer)
   Headers:
-    X-Tenant-Slug: string              // recommended; defaults to "dev" on localhost
+    X-Tenant-Slug: string              // only if the user belongs to several clients
   Body (application/json):
     {
       "name": string,                  // required, trimmed; empty string rejected
@@ -17,7 +17,6 @@ Response 201:
     "message": "Project created",
     "project": {
       "id": string,
-      "tenantId": string,
       "name": string,
       "status": "DRAFT",
       "speciesId": null,
@@ -32,13 +31,15 @@ Response 201:
 Errors:
   400 { "success": false, "message": "Project name is required." }
   401 { "success": false, "message": "Unauthorized" }   // or Clerk 401
-  403 { "success": false, "message": "You are not a member of this organisation." }
-  500 { "success": false, "message": "Failed to resolve tenant" }
+  400 { "message": "Select a workspace." }               // several clients, no X-Tenant-Slug
+  403 { "success": false, "message": "You do not have access to this workspace." }
+  403 { "success": false, "message": "This workspace has been restricted." }
+  403 { "success": false, "message": "Your role cannot create projects." }   // field_observer, viewer
+  409 { "success": false, "message": "Your organisation has reached its limit of N projects." }
 
 Notes:
-  - Creates a DRAFT project in the tenant identified by X-Tenant-Slug.
-  - The current user is automatically added as tenant member and as an ACTIVE VARIETY_MANAGER on the project. They can upload immediately; no extra invite step.
-  - 403 only if the tenant already has other members and the current user is not one of them. First user on an empty (e.g. "dev") tenant is allowed through.
+  - Creates a DRAFT project in the caller's client database. Client roles owner, master_project_manager and project_manager may create.
+  - The current user is automatically an ACTIVE VARIETY_MANAGER on the project. They can upload immediately; no extra invite step.
   - Do not POST files here. Create the project first, then use document init-upload.
 
 
@@ -56,9 +57,11 @@ Response 200:
     "projects": [
       {
         "id": string,
-        "tenantId": string,
         "name": string,
         "status": "DRAFT" | "ACTIVE" | "ARCHIVED",
+        "myRole": ProjectRole | null,
+        "isFieldObserver": boolean,
+        "myState": "ACTIVE" | "PENDING",
         "speciesId": string | null,
         "primarySpeciesBotanical": string | null,
         "primarySpeciesCommon": string | null,
@@ -72,12 +75,11 @@ Response 200:
 
 Errors:
   401 { "success": false, "message": "Unauthorized" }
-  500 { "success": false, "message": "Failed to resolve tenant" }
+  403 { "success": false, "message": "You do not have access to this workspace." }
 
 Notes:
-  - Returns projects in the current tenant that the user created OR belongs to as a project member.
+  - Returns projects in the caller's client database that the user created, belongs to, or has a PENDING invitation to (myState).
   - Sorted by updatedAt descending.
-  - Tenant membership is not required to hit this route; an empty array is returned if the user has no projects in that tenant.
 
 
 GET /api/projects/:projectId
@@ -94,7 +96,6 @@ Response 200:
     "success": true,
     "project": {
       "id": string,
-      "tenantId": string,
       "name": string,
       "status": "DRAFT" | "ACTIVE" | "ARCHIVED",
       "speciesId": string | null,
@@ -102,7 +103,10 @@ Response 200:
       "primarySpeciesCommon": string | null,
       "createdById": string,
       "createdAt": string,
-      "updatedAt": string
+      "updatedAt": string,
+      "myRole": ProjectRole,           // creator is VARIETY_MANAGER
+      "isFieldObserver": boolean,
+      "sectionAccess": { overview, genotype, supply_chain, phases, contracts, ip_rights, todo: "full" | "read" | "hidden" }
     },
     "documentsByStatus": {
       "PENDING_UPLOAD": number,        // keys only present for statuses that have rows
@@ -131,8 +135,9 @@ Errors:
   500 { "success": false, "message": "Failed to load project" }
 
 Notes:
-  - Project lookup is scoped to the current tenant. A valid id from another tenant returns 404, not 403.
-  - Viewer access: creator OR ACTIVE project member.
+  - Project lookup runs in the caller's client database. A valid id from another client returns 404, not 403.
+  - Access: creator OR ACTIVE project member (PENDING invitees only accept via POST /members/accept).
+  - Members (VARIETY_MANAGER only): GET/POST /api/projects/:projectId/members, PATCH/DELETE .../members/:memberId. Invitee: POST .../members/accept. The invitee must already be a client user.
   - documentsByStatus is an object, not an array. Missing keys mean count 0 — treat absent as 0 in the UI.
   - Use this after uploads to show how many files are still processing vs ready.
   - `phases` is the confirmed domain snapshot (empty `[]` until the VM confirms the Phase section).

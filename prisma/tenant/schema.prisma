@@ -1,0 +1,1045 @@
+// Tenant database schema — one database per client (nubred_{slug}).
+// Platform data (users, tenants, usage, jobs) lives in prisma/schema.prisma.
+// User id columns hold the platform users.id; there are no cross-database foreign keys.
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../node_modules/.prisma/tenant-client"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TENANT_DATABASE_URL")
+}
+
+// =============================================================================
+// Project module — Step 1 data model
+//
+// Scope (locked):
+//   Extraction targets + project/actor/document/provenance entities now.
+//   Frozen-section TABLES only (Overview, Supply Chain, IP Rights, To-Do,
+//   Quarantine) — extraction schemas for those come later, before first
+//   real client document upload.
+//
+// Deferred to a later migration (runtime observation, not extracted from docs):
+//   ObservationSession, ObservationValue, GenotypePerformance, AgronomicOperation
+//
+// S3 object key layout (the bucket itself is per client, nubred-{slug}):
+//   projects/{projectId}/documents/{documentId}/{filename}
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Enums — values match Zod constants in src/modules/project/sections/**
+// Hyphenated codes (e.g. MF-1) cannot be Prisma enums; those stay String.
+// ---------------------------------------------------------------------------
+
+enum ProjectStatus {
+  DRAFT // AI analysis / VM review — not visible to invited actors
+  ACTIVE // Confirmed enough to operate; actors invited
+  ARCHIVED
+}
+
+enum ProjectRole {
+  VARIETY_MANAGER
+  NURSERY
+  GROWER
+  PACKHOUSE_MARKETER
+  FIELD_OBSERVER
+}
+
+enum ActorState {
+  ACTIVE // Account activated / invitation accepted
+  PENDING // Invited, not yet activated
+}
+
+enum DocumentType {
+  SIGNED_CONTRACT
+  DRAFT_CONTRACT
+  CONTRACT_ANNEX
+  IP_CERTIFICATE
+  EMAIL
+  PROTOCOL_DOCUMENT
+  VCU_EVALUATION
+  PLANTING_PLAN
+  MEETING_NOTES
+  QUALITY_SPECIFICATION
+  SOIL_ANALYSIS
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING_UPLOAD // Presigned URL issued, object not confirmed
+  UPLOADED // S3 object verified
+  PROCESSING // Text extraction / AI pipeline running
+  READY // Pages extracted; available to the pipeline
+  FAILED
+}
+
+enum DocumentOrigin {
+  UPLOAD // Initial project corpus — used by full-section extraction
+  CHATBOT // Attached in section chat; scoped to one sectionKey, not re-extracted globally
+}
+
+enum ExtractionRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL // Some sections succeeded, some failed
+  FAILED
+}
+
+enum SectionExtractionStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum FieldConfidence {
+  CONFIRMED // Signed document or definitive source
+  PROVISIONAL // Non-binding source (email, draft, meeting notes)
+  CONFLICTING // Two documents disagree
+  MISSING // Required field not found — flag for VM
+}
+
+enum FieldOverrideSource {
+  VM_MANUAL
+  CHATBOT
+}
+
+enum DevelopmentStatus {
+  SELECTION
+  VARIETY
+  UNKNOWN
+}
+
+enum GenotypeLifecycle {
+  ACTIVE
+  ARCHIVED // Discarded at a phase gate — never deleted
+}
+
+enum PhaseType {
+  TRIAL
+  PILOT
+  LAUNCH
+  SCALE
+  CUSTOM
+}
+
+enum PhaseCategory {
+  EXPERIMENTAL
+  COMMERCIAL
+}
+
+enum GenotypeDecision {
+  PROMOTE
+  REPEAT
+  DISCARD
+}
+
+enum ProtocolType {
+  OBSERVATIONAL
+  COMMERCIAL
+}
+
+enum ParameterFamily {
+  F1
+  F2
+  F3
+  F4
+  F5
+  F6
+  F7
+  F8
+}
+
+enum ParameterLevel {
+  UNIVERSAL
+  SPECIES_STANDARD
+  PROJECT_CUSTOM
+}
+
+enum ParameterInputType {
+  NUMBER
+  SCALE
+  OPTION
+  DISTRIBUTION
+  DATE
+  BOOLEAN
+  PHOTO
+  TEXT
+}
+
+enum FrequencyType {
+  CALENDAR_FIXED
+  EVENT_BASED
+  PHASE_GATE
+  ON_DEMAND
+}
+
+enum ScalePolarity {
+  HIGHER_BETTER
+  LOWER_BETTER
+}
+
+enum EliminatoryLevel {
+  L1
+  L2
+  L3
+}
+
+enum ChronologyEventType {
+  CONTRACT_SIGNATURE
+  CONTRACT_AMENDMENT
+  PHASE_ADVANCEMENT
+  PHASE_START
+  PHASE_GATE
+  IP_FILING
+  IP_GRANT
+  IP_EXPIRY
+  QUARANTINE_START
+  QUARANTINE_CERTIFICATION
+  HARVEST_DECLARATION
+  OBSERVATION_MILESTONE
+  MEETING_DECISION
+  EMAIL_EXCHANGE
+  ROYALTY_PAYMENT
+  OPTION_EXERCISE
+  OTHER
+}
+
+enum DatePrecision {
+  EXACT
+  ESTIMATED
+  INFERRED
+}
+
+enum ContractFamily {
+  F1
+  F2
+  F3
+  F4
+  F5
+  F6
+  F7
+  F8
+  F9
+  F10
+  F11
+  F12
+  F13
+  F14
+  F15
+  F16
+  F17
+  F18
+  F19
+  F20
+  F21
+  F22
+  F23
+  F24
+  UNCLASSIFIED
+}
+
+enum PartyRole {
+  BREEDER
+  PRINCIPAL
+  LICENSOR
+  IVM
+  LICENSEE
+  NURSERY
+  LICENSED_GROWER
+  PACKHOUSE
+  MARKETER
+  CONSULTANT
+  LPM
+  CONTRACTOR
+  ASSOCIATION_OF_PRODUCERS
+  UNKNOWN
+}
+
+enum PbrStatus {
+  PROTECTED
+  APPLICATION_PENDING
+  NOT_YET_FILED
+  UNKNOWN
+}
+
+enum FlagSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum FlagType {
+  ABSENCE
+  ANOMALY
+  IMBALANCE
+}
+
+enum IpRightType {
+  PBR
+  PATENT
+  TRADEMARK
+}
+
+enum TodoTaskCategory {
+  CONTRACT_OBLIGATION
+  PHASE_GATE
+  REPORTING
+  QUARANTINE
+  OTHER
+}
+
+enum QuarantineStatus {
+  NOT_REQUIRED
+  PENDING
+  IN_PROGRESS
+  CERTIFIED
+  BLOCKED
+}
+
+// ---------------------------------------------------------------------------
+// Project, members, farms
+// ---------------------------------------------------------------------------
+
+model Project {
+  id     String        @id @default(uuid())
+  name   String
+  status ProjectStatus @default(DRAFT)
+
+  // Top-level species context (from genotype extraction / VM confirm)
+  speciesId               String?
+  primarySpeciesBotanical String?
+  primarySpeciesCommon    String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  species     Species? @relation(fields: [speciesId], references: [id], onDelete: SetNull)
+
+  members                  ProjectMember[]
+  farms                    Farm[]
+  documents                Document[]
+  extractionRuns           ExtractionRun[]
+  sectionExtractions       SectionExtraction[]
+  evidenceItems            EvidenceItem[]
+  fieldOverrides           FieldOverride[]
+  sectionConfirmations     SectionConfirmation[]
+  contracts                ProjectContract[]
+  genotypes                Genotype[]
+  phases                   Phase[]
+  protocols                Protocol[]
+  chronologyEvents         ChronologyEvent[]
+  fieldObserverAssignments FieldObserverAssignment[]
+  overview                 ProjectOverview?
+  supplyChainActors        SupplyChainActor[]
+  supplyChainEdges         SupplyChainEdge[]
+  ipRights                 IpRight[]
+  todoTasks                TodoTask[]
+  quarantines              Quarantine[]
+
+  @@index([status])
+  @@index([createdById])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id              String      @id @default(uuid())
+  projectId       String
+  userId          String? // null until invitation is accepted
+  invitedEmail    String
+  role            ProjectRole
+  // Additive functional role: a Grower can also be a Field Observer.
+  isFieldObserver Boolean     @default(false)
+  state           ActorState  @default(PENDING)
+  invitedById     String?
+  invitedAt       DateTime    @default(now())
+  acceptedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, invitedEmail])
+  @@index([userId])
+  @@index([projectId, role, state])
+  @@map("project_members")
+}
+
+model Farm {
+  id        String  @id @default(uuid())
+  projectId String
+  name      String
+  location  String?
+  notes     String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project                  Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  plots                    Plot[]
+  fieldObserverAssignments FieldObserverAssignment[]
+
+  @@index([projectId])
+  @@map("farms")
+}
+
+model Plot {
+  id     String  @id @default(uuid())
+  farmId String
+  name   String
+  areaHa Float?
+  notes  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm                     Farm                      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  fieldObserverAssignments FieldObserverAssignment[]
+
+  @@index([farmId])
+  @@map("plots")
+}
+
+// ---------------------------------------------------------------------------
+// Documents + provenance
+// ---------------------------------------------------------------------------
+
+model Document {
+  id        String @id @default(uuid())
+  projectId String
+
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  checksumSha256   String?
+
+  // S3 object identity — never a public URL
+  storageKey String // projects/{projectId}/documents/{id}/...
+  bucket     String?
+
+  documentType  DocumentType   @default(OTHER)
+  origin        DocumentOrigin @default(UPLOAD)
+  sectionKey    String? // set when origin = CHATBOT — which section this file is for
+  status        DocumentStatus @default(PENDING_UPLOAD)
+  failureReason String?        @db.Text
+
+  uploadedById String?
+  uploadedAt   DateTime?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pages         DocumentPage[]
+  evidenceItems EvidenceItem[]
+  contracts     ProjectContract[]
+
+  @@unique([storageKey])
+  @@index([projectId, status])
+  @@map("documents")
+}
+
+model DocumentPage {
+  id         String @id @default(uuid())
+  documentId String
+  pageNumber Int // 1-based
+  text       String @db.Text
+  charCount  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, pageNumber])
+  @@map("document_pages")
+}
+
+model ExtractionRun {
+  id           String              @id @default(uuid())
+  projectId    String
+  status       ExtractionRunStatus @default(QUEUED)
+  promptHash   String?
+  modelId      String?
+  provider     String? // gemini | mock | ...
+  inputTokens  Int?
+  outputTokens Int?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  error        String?             @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sections SectionExtraction[]
+
+  @@index([projectId, createdAt])
+  @@map("extraction_runs")
+}
+
+model SectionExtraction {
+  id              String                  @id @default(uuid())
+  extractionRunId String
+  projectId       String
+  sectionKey      String // contract | genotype | phase | protocol | chronology | ...
+  status          SectionExtractionStatus @default(QUEUED)
+  promptHash      String?
+  modelId         String?
+  rawResponse     Json? // unvalidated provider output
+  payload         Json? // Zod-validated extraction
+  fieldMeta       Json? // { [fieldPath]: { confidence, sources[], origin? } }
+  reviewState     Json? // e.g. { gapsTabViewed: true } — before confirm
+  error           String?                 @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  extractionRun ExtractionRun  @relation(fields: [extractionRunId], references: [id], onDelete: Cascade)
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  evidenceItems EvidenceItem[]
+
+  @@index([projectId, sectionKey])
+  @@index([extractionRunId])
+  @@map("section_extractions")
+}
+
+model EvidenceItem {
+  id                  String  @id @default(uuid())
+  projectId           String
+  sectionExtractionId String?
+  documentId          String?
+  sectionKey          String
+  fieldPath           String
+  documentName        String
+  page                Int?
+  charOffset          Int?
+  quote               String  @db.Text
+  frameworkElement    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sectionExtraction SectionExtraction? @relation(fields: [sectionExtractionId], references: [id], onDelete: Cascade)
+  document          Document?          @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, sectionKey, fieldPath])
+  @@map("evidence_items")
+}
+
+model FieldOverride {
+  id             String              @id @default(uuid())
+  projectId      String
+  sectionKey     String
+  fieldPath      String
+  previousValue  Json?
+  newValue       Json?
+  source         FieldOverrideSource
+  reason         String?             @db.Text
+  overriddenById String
+
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sectionKey])
+  @@map("field_overrides")
+}
+
+model SectionConfirmation {
+  id              String   @id @default(uuid())
+  projectId       String
+  sectionKey      String
+  confirmedById   String
+  confirmedAt     DateTime @default(now())
+  payloadSnapshot Json // locked copy of the confirmed extraction
+  reviewState     Json? // e.g. { gapsTabViewed: true }
+  warningsAck     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, sectionKey])
+  @@map("section_confirmations")
+}
+
+// ---------------------------------------------------------------------------
+// Confirmed domain — Contract, Genotype, Phase, Protocol, Chronology
+// ---------------------------------------------------------------------------
+
+model ProjectContract {
+  id         String  @id @default(uuid())
+  projectId  String
+  documentId String?
+
+  contractType             ContractFamily?
+  economicFunction         String? // MF-1 … MF-8 — hyphenated, not a Prisma enum
+  classificationConfidence Float?
+  contractLanguage         String?
+  governingLaw             String?
+  effectiveDate            String?
+  endDate                  String?
+  evaluationPeriod         String?
+  renewalMechanism         String?
+
+  payload Json? // full confirmed extraction (nested financials, rights, etc.)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  document         Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  parties          ContractParty[]
+  clauses          ContractClause[]
+  supplyChainEdges SupplyChainEdge[]
+
+  @@index([projectId])
+  @@map("project_contracts")
+}
+
+model ContractParty {
+  id         String     @id @default(uuid())
+  contractId String
+  name       String?
+  role       PartyRole?
+  country    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract ProjectContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("contract_parties")
+}
+
+model ContractClause {
+  id          String        @id @default(uuid())
+  contractId  String
+  clauseId    String // AgreeLyze C-01 … C-45
+  present     Boolean       @default(false)
+  flagType    FlagType?
+  severity    FlagSeverity?
+  note        String?       @db.Text
+  citedSource String?       @db.Text
+  vmNotes     String?       @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract ProjectContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, clauseId])
+  @@map("contract_clauses")
+}
+
+model Genotype {
+  id                String             @id @default(uuid())
+  projectId         String
+  name              String?
+  breederCode       String?
+  speciesBotanical  String?
+  speciesCommon     String?
+  developmentStatus DevelopmentStatus?
+  lifecycle         GenotypeLifecycle  @default(ACTIVE)
+  numberOfPlants    Int?
+  ipReference       String?
+  notes             String?            @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project                  Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phases                   PhaseGenotype[]
+  fieldObserverAssignments FieldObserverAssignment[]
+  ipRights                 IpRight[]
+  quarantines              Quarantine[]
+
+  @@index([projectId, lifecycle])
+  @@map("genotypes")
+}
+
+model Phase {
+  id                String         @id @default(uuid())
+  projectId         String
+  name              String?
+  type              PhaseType?
+  category          PhaseCategory?
+  typeMappingNote   String?        @db.Text
+  objective         String?        @db.Text
+  duration          String?
+  startTrigger      String?
+  location          String?
+  countries         Json? // string[] ISO 3166-1 alpha-2
+  plantCount        Int?
+  hectares          Float?
+  gateCriteria      Json? // string[]
+  capitolatoDefined Boolean?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  genotypes PhaseGenotype[]
+  protocols Protocol[]
+
+  @@index([projectId, sortOrder])
+  @@map("phases")
+}
+
+model PhaseGenotype {
+  id           String            @id @default(uuid())
+  phaseId      String
+  genotypeId   String
+  decision     GenotypeDecision?
+  decisionDate String?
+  notes        String?           @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  phase    Phase    @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  genotype Genotype @relation(fields: [genotypeId], references: [id], onDelete: Cascade)
+
+  @@unique([phaseId, genotypeId])
+  @@map("phase_genotypes")
+}
+
+model Protocol {
+  id             String        @id @default(uuid())
+  projectId      String
+  phaseId        String?
+  speciesId      String?
+  name           String?
+  objective      String?       @db.Text
+  protocolType   ProtocolType?
+  linkedPhase    PhaseType? // denormalised from extraction when phase row not yet linked
+  sourceDocument String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project     Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phase       Phase?                    @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  species     Species?                  @relation(fields: [speciesId], references: [id], onDelete: SetNull)
+  parameters  ProtocolParameter[]
+  assignments FieldObserverAssignment[]
+
+  @@index([projectId])
+  @@index([phaseId])
+  @@map("protocols")
+}
+
+model ProtocolParameter {
+  id                   String              @id @default(uuid())
+  protocolId           String
+  name                 String
+  nubredStandardName   String?
+  family               ParameterFamily?
+  parameterLevel       ParameterLevel?
+  inputType            ParameterInputType?
+  scaleMin             Float?
+  scaleMax             Float?
+  scalePolarity        ScalePolarity?
+  howToMeasure         String?             @db.Text
+  unit                 String?
+  frequencyType        FrequencyType?
+  frequencyValue       String?
+  dataCollectionWindow String?
+  sampleSize           String?
+  threshold            String?
+  thresholdType        String?
+  eliminatoryLevel     EliminatoryLevel? // null = not eliminatory
+  isCustom             Boolean             @default(false)
+  optionValues         Json? // OPTION lists; DISTRIBUTION size classes
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+
+  @@index([protocolId, family])
+  @@map("protocol_parameters")
+}
+
+model ChronologyEvent {
+  id               String              @id @default(uuid())
+  projectId        String
+  eventType        ChronologyEventType
+  description      String              @db.Text
+  date             String? // ISO-8601 at the precision available (YYYY / YYYY-MM / YYYY-MM-DD)
+  datePrecision    DatePrecision
+  dateNotes        String?             @db.Text
+  actor            String?
+  sourceSection    String?
+  linkedEntityType String?
+  linkedEntityRef  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, date])
+  @@map("chronology_events")
+}
+
+// ---------------------------------------------------------------------------
+// Parameter Registry (Level 1/2 definitions; Level 3 lives on ProtocolParameter)
+// ---------------------------------------------------------------------------
+
+model Species {
+  id            String @id @default(uuid())
+  botanicalName String @unique
+  commonName    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parameters ParameterDefinition[]
+  protocols  Protocol[]
+  projects   Project[]
+
+  @@map("species")
+}
+
+model ParameterDefinition {
+  id               String             @id @default(uuid())
+  speciesId        String? // null = UNIVERSAL (all species)
+  name             String
+  family           ParameterFamily
+  level            ParameterLevel
+  inputType        ParameterInputType
+  scaleMin         Float?
+  scaleMax         Float?
+  scalePolarity    ScalePolarity?
+  unit             String?
+  howToMeasure     String?            @db.Text
+  frequencyType    FrequencyType?
+  threshold        String?
+  thresholdType    String?
+  eliminatoryLevel EliminatoryLevel?
+  optionValues     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  species Species? @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+
+  @@index([speciesId, family])
+  @@index([level, family])
+  @@map("parameter_definitions")
+}
+
+// ---------------------------------------------------------------------------
+// Field Observer assignment (project activation — Step 8)
+// ---------------------------------------------------------------------------
+
+model FieldObserverAssignment {
+  id           String    @id @default(uuid())
+  projectId    String
+  userId       String
+  genotypeId   String
+  farmId       String
+  plotId       String?
+  protocolId   String?
+  assignedById String
+  assignedAt   DateTime  @default(now())
+  activeFrom   DateTime  @default(now())
+  activeTo     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  genotype Genotype  @relation(fields: [genotypeId], references: [id], onDelete: Cascade)
+  farm     Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  plot     Plot?     @relation(fields: [plotId], references: [id], onDelete: SetNull)
+  protocol Protocol? @relation(fields: [protocolId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, userId])
+  @@index([genotypeId, farmId])
+  @@map("field_observer_assignments")
+}
+
+// ---------------------------------------------------------------------------
+// Frozen sections — tables exist; extraction schemas come later
+// ---------------------------------------------------------------------------
+
+model ProjectOverview {
+  id               String  @id @default(uuid())
+  projectId        String  @unique
+  summary          String? @db.Text
+  species          String?
+  territory        String?
+  startDate        String?
+  // 13-parameter governance rating — shape defined when Overview extraction is added
+  governanceRating Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_overviews")
+}
+
+model SupplyChainActor {
+  id           String       @id @default(uuid())
+  projectId    String
+  name         String
+  role         ProjectRole?
+  state        ActorState?
+  userId       String?
+  invitedEmail String?
+  notes        String?      @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  edgesFrom SupplyChainEdge[] @relation("EdgeFrom")
+  edgesTo   SupplyChainEdge[] @relation("EdgeTo")
+
+  @@index([projectId])
+  @@map("supply_chain_actors")
+}
+
+model SupplyChainEdge {
+  id          String  @id @default(uuid())
+  projectId   String
+  fromActorId String
+  toActorId   String
+  contractId  String?
+  label       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromActor SupplyChainActor @relation("EdgeFrom", fields: [fromActorId], references: [id], onDelete: Cascade)
+  toActor   SupplyChainActor @relation("EdgeTo", fields: [toActorId], references: [id], onDelete: Cascade)
+  contract  ProjectContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("supply_chain_edges")
+}
+
+model IpRight {
+  id         String      @id @default(uuid())
+  projectId  String
+  genotypeId String?
+  type       IpRightType
+  name       String?
+  notes      String?     @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  genotype  Genotype?    @relation(fields: [genotypeId], references: [id], onDelete: SetNull)
+  pbr       IpPbr?
+  patent    IpPatent?
+  trademark IpTrademark?
+
+  @@index([projectId, type])
+  @@map("ip_rights")
+}
+
+model IpPbr {
+  id          String     @id @default(uuid())
+  ipRightId   String     @unique
+  grantNumber String?
+  office      String?
+  filingDate  String?
+  grantDate   String?
+  expiryDate  String?
+  status      PbrStatus?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ipRight IpRight @relation(fields: [ipRightId], references: [id], onDelete: Cascade)
+
+  @@map("ip_pbrs")
+}
+
+model IpPatent {
+  id           String  @id @default(uuid())
+  ipRightId    String  @unique
+  patentNumber String?
+  office       String?
+  filingDate   String?
+  grantDate    String?
+  expiryDate   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ipRight IpRight @relation(fields: [ipRightId], references: [id], onDelete: Cascade)
+
+  @@map("ip_patents")
+}
+
+model IpTrademark {
+  id                 String   @id @default(uuid())
+  ipRightId          String   @unique
+  registration       String?
+  territory          String?
+  includedInContract Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ipRight IpRight @relation(fields: [ipRightId], references: [id], onDelete: Cascade)
+
+  @@map("ip_trademarks")
+}
+
+model TodoTask {
+  id                String           @id @default(uuid())
+  projectId         String
+  title             String
+  dueDate           String?
+  category          TodoTaskCategory @default(OTHER)
+  assignedActorRole ProjectRole?
+  assignedToId      String?
+  citedSource       String?          @db.Text
+  completedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, category])
+  @@index([assignedToId])
+  @@map("todo_tasks")
+}
+
+model Quarantine {
+  id                        String           @id @default(uuid())
+  projectId                 String
+  genotypeId                String?
+  status                    QuarantineStatus @default(PENDING)
+  expectedCertificationDate String?
+  documentationNotes        String?          @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  genotype Genotype? @relation(fields: [genotypeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@map("quarantines")
+}
