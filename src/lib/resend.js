@@ -139,4 +139,68 @@ export const sendProjectInvitation = async ({
   }
 };
 
+/**
+ * Client-user invite. `acceptUrl` is Clerk's ticket link (notify: false).
+ * Clicking it still lands on /accept-invitation.
+ */
+export const sendClientInvitation = async ({
+  email,
+  companyName,
+  roleLabel,
+  acceptUrl,
+  expiresInDays,
+}) => {
+  const from = process.env.RESEND_FROM_EMAIL;
+
+  if (!process.env.RESEND_API_KEY || !from) {
+    throw new Error("Resend is not configured");
+  }
+
+  const logoUrl = process.env.NUBRED_LOGO_URL || DEFAULT_LOGO_URL;
+  const safeUrl = escapeHtml(acceptUrl);
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+      <body style="margin: 0; padding: 0; background-color: #f4f4f5;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 24px 0;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+                <tr>
+                  <td align="center" style="background-color: #000000; padding: 32px 24px;">
+                    <img src="${logoUrl}" alt="NuBred" width="160" style="display: block; margin: 0 auto; max-width: 160px; height: auto;" />
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 32px 24px; font-family: Arial, Helvetica, sans-serif; line-height: 1.6; color: #111111;">
+                    <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600;">You're invited to ${escapeHtml(companyName)}</h2>
+                    <p style="margin: 0 0 16px;">You have been added to <strong>${escapeHtml(companyName)}</strong> on NuBred as <strong>${escapeHtml(roleLabel)}</strong>.</p>
+                    <p style="margin: 0 0 24px;">This invitation expires in ${escapeHtml(expiresInDays)} days.</p>
+                    <p style="margin: 0 0 24px;">
+                      <a href="${safeUrl}" style="display: inline-block; background-color: #111111; color: #ffffff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600;">Accept invitation</a>
+                    </p>
+                    <p style="margin: 0 0 16px; font-size: 14px; color: #444444;">If the button does not work, copy this link into your browser:<br /><a href="${safeUrl}">${safeUrl}</a></p>
+                    <p style="margin: 0;">— The NuBred Team</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const { error } = await resend.emails.send({
+    from,
+    to: email,
+    subject: `You're invited to ${companyName} on NuBred`,
+    html,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
 export default resend;

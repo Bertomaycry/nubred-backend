@@ -330,6 +330,8 @@ Frontend integration contracts. Copy these into the frontend repo.
 | `frontend-extraction-ui.md` | snake_case field binding |
 | `review.md` | GET section, PATCH fields, Gaps tab, POST confirm |
 | `chat.md` | Nubred AI chatbot on the review screen |
+| `frontend-master-filters.md` | Admin Master Filter UI + tenant suggestion upload |
+| `frontend-client-invite-signup.md` | Invited client user: `/accept-invitation` (no onboarding) |
 
 ---
 
@@ -380,6 +382,10 @@ Spec: [`NuBred_Client_Module_Backend_Guide.html`](./NuBred_Client_Module_Backend
 
 Request path: `attachTenant` (`tenant.middleware.js`) resolves `tenant_users` → `req.tenant`, `req.db`, `req.bucket` on every request; `requireModule(id)` reads `tenant_modules` fresh.
 
+### Master filters (admin + tenant suggestions)
+
+Platform DB tables `master_filters`, `user_filters`, `filter_uploads`. Code: `src/modules/master-filter/`. HTTP: `/api/admin/master-filters` (admin, no `X-Tenant-Slug`) and `/api/master-filters` (tenant suggestions). Storage: platform bucket `nubred-platform` (`NUBRED_PLATFORM_BUCKET`). Frontend contract: [`docs/api/frontend-master-filters.md`](./api/frontend-master-filters.md).
+
 **Deferred (runtime observation, not extracted from documents):** `ObservationSession`, `ObservationValue`, `GenotypePerformance`, `AgronomicOperation`.
 
 **S3 layout (one private bucket per client, `nubred-{slug}`):**
@@ -403,7 +409,9 @@ Add these to `.env` and `.env.sample`:
 | `AWS_S3_PUBLIC_ENDPOINT` | same as endpoint | Browser-facing host if it differs from `AWS_S3_ENDPOINT` |
 | `AWS_S3_FORCE_PATH_STYLE` | true when endpoint set | `false` for native AWS S3 |
 | `NUBRED_STORAGE_PROVIDER` | `s3` | Currently only `s3` (S3-compatible) |
-| `NUBRED_TENANT_HOST_SUFFIX` | `gov.nubred.com` | Client workspace host `{slug}.{suffix}` (invite link, bucket CORS) |
+| `NUBRED_PLATFORM_BUCKET` | `nubred-platform` | Private bucket for master filter originals |
+| `NUBRED_TENANT_HOST_SUFFIX` | `gov.nubred.com` | Client workspace host `{slug}.{suffix}` |
+| `NUBRED_APP_ORIGIN` | `https://gov.nubred.com` | Governance SPA. Clerk invite redirect is `{origin}/accept-invitation?slug=` |
 | `NUBRED_TENANT_DATABASE_URL` | `DATABASE_URL` | Server for client DBs, if not the platform server |
 | `NUBRED_TENANT_DB_CONNECTION_LIMIT` | `5` | Pool size per client DB |
 | `NUBRED_MAX_UPLOAD_BYTES` | `52428800` | 50 MB default |

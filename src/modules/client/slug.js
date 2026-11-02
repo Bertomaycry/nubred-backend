@@ -15,6 +15,7 @@ export const RESERVED_SLUGS = [
   "staging",
   "static",
   "assets",
+  "platform", // nubred-platform is the master filter bucket
 ];
 
 /**
@@ -44,4 +45,22 @@ export const bucketNameFor = (slug) => `nubred-${slug}`;
 export const tenantHostSuffix = () =>
   process.env.NUBRED_TENANT_HOST_SUFFIX || "gov.nubred.com";
 
+/** Client workspace host. Not the Clerk invitation redirect. */
 export const workspaceUrl = (slug) => `https://${slug}.${tenantHostSuffix()}`;
+
+/** Governance SPA origin. Clerk invitation lands here, not on the marketing subdomain. */
+export const appOrigin = () =>
+  (process.env.NUBRED_APP_ORIGIN || "https://gov.nubred.com").replace(/\/$/, "");
+
+/**
+ * Accept-invitation page. `client` and `role` are display text only.
+ * Clerk appends __clerk_status and __clerk_ticket.
+ */
+export const acceptInvitationUrl = ({ slug, companyName, roleLabel }) => {
+  const params = new URLSearchParams({
+    slug,
+    client: companyName,
+    role: roleLabel,
+  });
+  return `${appOrigin()}/accept-invitation?${params.toString()}`;
+};

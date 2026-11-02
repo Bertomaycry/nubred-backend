@@ -2,7 +2,9 @@ import "dotenv/config";
 import connectDB from "./db/index.js";
 import app from "./app.js";
 import { scheduleUnregisterJob } from "./crons/unregisterJob.js";
+import { scheduleExpireFilterUploads } from "./crons/expire-filter-uploads.js";
 import { initStorage } from "./modules/project/storage/provider.js";
+import { ensurePlatformBucket } from "./modules/master-filter/platform-bucket.js";
 import { initProvider } from "./modules/project/llm/provider.js";
 import {
   isPrimaryProcess,
@@ -11,12 +13,14 @@ import {
 
 if (isPrimaryProcess()) {
   scheduleUnregisterJob();
+  scheduleExpireFilterUploads();
 }
 
 connectDB()
   .then(async () => {
     try {
       await initStorage();
+      await ensurePlatformBucket();
     } catch (error) {
       console.error(`❌ Object storage init failed: ${error.message}`);
       console.error(

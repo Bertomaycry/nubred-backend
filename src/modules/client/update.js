@@ -3,7 +3,7 @@ import {
   ClientError,
   assertNotAdmins,
   inviteNewUsers,
-  inviteViaClerk,
+  inviteClientUser,
   moduleRows,
 } from "./provision.js";
 
@@ -73,10 +73,11 @@ export async function updateClient(id, input, overrides = {}) {
 
   const inviteFailures = await inviteNewUsers({
     slug: tenant.slug,
-    emails: added.map((u) => u.email),
+    companyName: input.companyName,
+    users: added,
     deps: {
       prisma,
-      inviteEmail: overrides.inviteEmail ?? inviteViaClerk,
+      inviteEmail: overrides.inviteEmail ?? inviteClientUser,
     },
   });
 

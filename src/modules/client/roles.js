@@ -22,6 +22,16 @@ export const PROJECT_CREATOR_ROLES = [
   "project_manager",
 ];
 
+const ROLE_LABELS = {
+  owner: "Owner",
+  master_project_manager: "Master Project Manager",
+  project_manager: "Project Manager",
+  field_observer: "Field Observer",
+  viewer: "Viewer",
+};
+
+export const clientRoleLabel = (role) => ROLE_LABELS[role] ?? role;
+
 export function roleOrder(role) {
   const index = CLIENT_ROLES.indexOf(role);
   return index === -1 ? CLIENT_ROLES.length : index;
