@@ -6,7 +6,9 @@ import {
 import { migrateTenantDatabase } from "../../lib/tenant-migrate.js";
 import { ensureStorage } from "../project/storage/provider.js";
 import { MODULE_IDS } from "./modules.js";
-import { bucketNameFor, databaseNameFor, workspaceUrl } from "./slug.js";
+import { acceptInvitationUrl, bucketNameFor, databaseNameFor } from "./slug.js";
+import { clientRoleLabel } from "./roles.js";
+import { sendClientInvitation } from "../../lib/resend.js";
 
 /** An error asyncHandler answers with as-is (it reads `code` as the HTTP status). */
 export class ClientError extends Error {
@@ -47,17 +49,39 @@ function defaultDeps(prisma) {
       );
     },
 
-    inviteEmail: inviteViaClerk,
+    inviteEmail: inviteClientUser,
   };
 }
 
-/** Clerk invitation email. Imported lazily so tests need no Clerk key. */
-export async function inviteViaClerk(emailAddress, redirectUrl) {
+/** Clerk invitation lifetime. Whole days; 2 ≈ 48 hours. */
+export const INVITE_EXPIRES_IN_DAYS = 2;
+
+/**
+ * Clerk creates the ticket link and does not email (notify: false).
+ * Resend sends that link, with the company name and role.
+ */
+export async function inviteClientUser({ email, role, companyName, slug }) {
   const { clerkClient } = await import("../../middlewares/auth.middleware.js");
-  await clerkClient.invitations.createInvitation({
-    emailAddress,
-    redirectUrl,
+  const invitation = await clerkClient.invitations.createInvitation({
+    emailAddress: email,
+    redirectUrl: acceptInvitationUrl({
+      slug,
+      companyName,
+      roleLabel: clientRoleLabel(role),
+    }),
     ignoreExisting: true,
+    expiresInDays: INVITE_EXPIRES_IN_DAYS,
+    notify: false,
+  });
+  if (!invitation?.url) {
+    throw new Error("Clerk did not return an invitation link.");
+  }
+  await sendClientInvitation({
+    email,
+    companyName,
+    roleLabel: clientRoleLabel(role),
+    acceptUrl: invitation.url,
+    expiresInDays: INVITE_EXPIRES_IN_DAYS,
   });
 }
 
@@ -91,27 +115,32 @@ export async function assertNotAdmins(prisma, emails) {
  *
  * @returns {Promise<Array<{ email: string, reason: string }>>}
  */
-export async function inviteNewUsers({ slug, emails, deps }) {
+export async function inviteNewUsers({ slug, companyName, users, deps }) {
   const failures = [];
-  if (emails.length === 0) return failures;
+  if (users.length === 0) return failures;
 
   const existing = await deps.prisma.user.findMany({
     where: {
-      OR: emails.map((email) => ({
-        email: { equals: email, mode: "insensitive" },
+      OR: users.map((user) => ({
+        email: { equals: user.email, mode: "insensitive" },
       })),
     },
     select: { email: true },
   });
   const known = new Set(existing.map((u) => u.email.toLowerCase()));
 
-  for (const email of emails) {
-    if (known.has(email)) continue;
+  for (const user of users) {
+    if (known.has(user.email)) continue;
     try {
-      await deps.inviteEmail(email, workspaceUrl(slug));
+      await deps.inviteEmail({
+        email: user.email,
+        role: user.role,
+        companyName,
+        slug,
+      });
     } catch (error) {
-      console.warn(`Clerk invitation for ${email} failed: ${error.message}`);
-      failures.push({ email, reason: error.message });
+      console.warn(`Invitation for ${user.email} failed: ${error.message}`);
+      failures.push({ email: user.email, reason: error.message });
     }
   }
   return failures;
@@ -239,7 +268,12 @@ export async function provisionClient(input, overrides = {}) {
   }
 
   // Saved. Invitations are best effort.
-  const inviteFailures = await inviteNewUsers({ slug, emails, deps });
+  const inviteFailures = await inviteNewUsers({
+    slug,
+    companyName: input.companyName,
+    users: input.users,
+    deps,
+  });
 
   return { tenant, inviteFailures };
 }

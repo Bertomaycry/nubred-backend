@@ -103,6 +103,16 @@ export class StorageProvider {
   }
 
   /**
+   * Server-side write (small objects only; browsers upload via presigned PUT).
+   * @param {{ bucket: string, key: string, body: Buffer | string, mimeType: string }} params
+   * @returns {Promise<void>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async putObject({ bucket, key, body, mimeType }) {
+    throw new Error(`${this.constructor.name} must implement putObject()`);
+  }
+
+  /**
    * @param {string} bucket
    * @param {string} key
    * @returns {Promise<void>}
@@ -110,6 +120,26 @@ export class StorageProvider {
   // eslint-disable-next-line no-unused-vars
   async deleteObject(bucket, key) {
     throw new Error(`${this.constructor.name} must implement deleteObject()`);
+  }
+
+  /**
+   * Create the bucket if it is missing. Idempotent. Applies CORS either way.
+   * @param {string} bucket
+   * @returns {Promise<void>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async ensureBucket(bucket) {
+    throw new Error(`${this.constructor.name} must implement ensureBucket()`);
+  }
+
+  /**
+   * Copy an object (max a few MB — filters, not bulk documents).
+   * @param {{ sourceBucket: string, sourceKey: string, destBucket: string, destKey: string, mimeType?: string }} params
+   * @returns {Promise<void>}
+   */
+  // eslint-disable-next-line no-unused-vars
+  async copyObject({ sourceBucket, sourceKey, destBucket, destKey, mimeType }) {
+    throw new Error(`${this.constructor.name} must implement copyObject()`);
   }
 }
 

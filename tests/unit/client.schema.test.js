@@ -5,7 +5,12 @@ import {
   parseRestrictReason,
 } from "../../src/modules/client/client.schema.js";
 import { MODULE_IDS } from "../../src/modules/client/modules.js";
-import { slugError, databaseNameFor, bucketNameFor } from "../../src/modules/client/slug.js";
+import {
+  slugError,
+  databaseNameFor,
+  bucketNameFor,
+  acceptInvitationUrl,
+} from "../../src/modules/client/slug.js";
 
 const modules = (overrides = {}) => ({
   ...Object.fromEntries(MODULE_IDS.map((id) => [id, false])),
@@ -113,5 +118,21 @@ describe("slug", () => {
   test("maps to database and bucket names", () => {
     expect(databaseNameFor("agri-levante")).toBe("nubred_agri_levante");
     expect(bucketNameFor("agri-levante")).toBe("nubred-agri-levante");
+  });
+
+  test("accept-invitation URL uses the app origin and keeps the slug", () => {
+    const previous = process.env.NUBRED_APP_ORIGIN;
+    process.env.NUBRED_APP_ORIGIN = "http://localhost:5173/";
+    expect(
+      acceptInvitationUrl({
+        slug: "test",
+        companyName: "Agritech Corporation",
+        roleLabel: "Project Manager",
+      })
+    ).toBe(
+      "http://localhost:5173/accept-invitation?slug=test&client=Agritech+Corporation&role=Project+Manager"
+    );
+    if (previous === undefined) delete process.env.NUBRED_APP_ORIGIN;
+    else process.env.NUBRED_APP_ORIGIN = previous;
   });
 });

@@ -150,6 +150,7 @@ export class S3StorageProvider extends StorageProvider {
             "http://localhost:3000",
             "https://preview.nubred.com",
             "https://governance.nubred.com",
+            `https://${process.env.NUBRED_TENANT_HOST_SUFFIX || "gov.nubred.com"}`,
             `https://*.${process.env.NUBRED_TENANT_HOST_SUFFIX || "gov.nubred.com"}`,
           ];
 
@@ -230,9 +231,46 @@ export class S3StorageProvider extends StorageProvider {
     return Buffer.from(await result.Body.transformToByteArray());
   }
 
+  async putObject({ bucket, key, body, mimeType }) {
+    await this._client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body,
+        ContentType: mimeType,
+      })
+    );
+  }
+
   async deleteObject(bucket, key) {
     await this._client.send(
       new DeleteObjectCommand({ Bucket: bucket, Key: key })
     );
+  }
+
+  async ensureBucket(bucket) {
+    if (await this.bucketExists(bucket)) {
+      await this._applyCors(bucket);
+      return;
+    }
+    try {
+      await this.createBucket(bucket);
+    } catch (error) {
+      if (await this.bucketExists(bucket)) {
+        await this._applyCors(bucket);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  async copyObject({ sourceBucket, sourceKey, destBucket, destKey, mimeType }) {
+    const body = await this.getObjectBuffer(sourceBucket, sourceKey);
+    await this.putObject({
+      bucket: destBucket,
+      key: destKey,
+      body,
+      mimeType: mimeType || "application/octet-stream",
+    });
   }
 }

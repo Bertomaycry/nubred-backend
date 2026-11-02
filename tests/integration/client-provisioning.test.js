@@ -58,7 +58,7 @@ run("client provisioning (real Postgres)", () => {
   const deps = () => ({
     prisma,
     storage: async () => storage,
-    inviteEmail: async (email) => invites.push(email),
+    inviteEmail: async ({ email }) => invites.push(email),
   });
 
   beforeAll(async () => {

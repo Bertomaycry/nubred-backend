@@ -247,6 +247,7 @@ model Tenant {
   modules      TenantModule[]
   restrictions TenantRestriction[]
   jobs         Job[]
+  userFilters  UserFilter[]
 
   @@index([provisioningStatus, status])
   @@map("tenants")
@@ -363,4 +364,91 @@ model Job {
   @@index([projectId])
   @@index([tenantId])
   @@map("jobs")
+}
+
+// =============================================================================
+// Master filters — global AI instruction files per section (admin-owned), and
+// user filters (suggestions) submitted from client workspaces.
+// sectionKey is one of src/modules/master-filter/sections.js. User id columns
+// hold platform users.id with no FK.
+// =============================================================================
+
+enum UserFilterStatus {
+  PENDING
+  ACCEPTED
+  DISMISSED
+}
+
+enum FilterUploadKind {
+  MASTER
+  USER
+}
+
+enum FilterUploadStatus {
+  PENDING_UPLOAD
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+model MasterFilter {
+  id                 String   @id @default(uuid())
+  sectionKey         String
+  fileName           String
+  mimeType           String
+  sizeBytes          Int
+  storageKey         String // platform bucket
+  content            String   @db.Text // source of truth after upload
+  version            Int      @default(1)
+  sourceUserFilterId String?  @unique
+  createdById        String
+  updatedById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([sectionKey, createdAt])
+  @@map("master_filters")
+}
+
+model UserFilter {
+  id                     String           @id @default(uuid())
+  sectionKey             String
+  tenantId               String
+  submittedByUserId      String
+  fileName               String
+  mimeType               String
+  sizeBytes              Int
+  storageKey             String // tenant bucket
+  content                String           @db.Text
+  status                 UserFilterStatus @default(PENDING)
+  promotedMasterFilterId String?
+  reviewedById           String?
+  reviewedAt             DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([sectionKey, status, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("user_filters")
+}
+
+model FilterUpload {
+  id            String             @id @default(uuid())
+  kind          FilterUploadKind
+  sectionKey    String
+  tenantId      String? // USER uploads only
+  createdById   String
+  fileName      String
+  mimeType      String
+  declaredSize  Int
+  storageKey    String
+  status        FilterUploadStatus @default(PENDING_UPLOAD)
+  failureReason String?
+  expiresAt     DateTime
+  createdAt     DateTime           @default(now())
+
+  @@index([status, expiresAt])
+  @@map("filter_uploads")
 }

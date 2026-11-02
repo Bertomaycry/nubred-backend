@@ -11,6 +11,8 @@ import blogRoutes from "./routes/blog.routes.js";
 import earlyAdopterRoutes from "./routes/early-adopter.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 import adminClientRoutes from "./routes/admin-client.routes.js";
+import adminMasterFilterRoutes from "./routes/admin-master-filter.routes.js";
+import masterFilterRoutes from "./routes/master-filter.routes.js";
 import usageRoutes from "./routes/usage.routes.js";
 
 const app = express();
@@ -51,7 +53,14 @@ app.use("/webhooks", webhookRoutes);
 // Must be added before any route that calls requireAuth() / getAuth().
 app.use(clerkMiddleware());
 
-app.use(express.json({ limit: "50kb" }));
+const json50kb = express.json({ limit: "50kb" });
+const json3mb = express.json({ limit: "3mb" });
+app.use((req, res, next) => {
+  const largePatch =
+    req.method === "PATCH" &&
+    /^\/api\/admin\/master-filters\/[^/]+$/.test(req.path);
+  return (largePatch ? json3mb : json50kb)(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
@@ -64,6 +73,8 @@ app.use("/api/blog", blogRoutes);
 app.use("/api/early-adopters", earlyAdopterRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/admin/clients", adminClientRoutes);
+app.use("/api/admin/master-filters", adminMasterFilterRoutes);
+app.use("/api/master-filters", masterFilterRoutes);
 app.use("/api/usage", usageRoutes);
 
 app.get("/health", (req, res) => {
