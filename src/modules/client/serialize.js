@@ -1,9 +1,21 @@
 import { enabledModuleIds } from "./modules.js";
 import { compareUsers } from "./roles.js";
 import { usageForUser } from "./usage.js";
+import { activePendingInvites } from "./invites.js";
 
-const ownerEmail = (users) =>
-  users.find((u) => u.role === "owner")?.email ?? null;
+const ownerEmail = (users, invites) =>
+  users.find((user) => user.role === "owner")?.email ??
+  activePendingInvites(invites).find((invite) => invite.role === "owner")?.email ??
+  null;
+
+const pendingInvites = (invites) =>
+  activePendingInvites(invites)
+    .sort(compareUsers)
+    .map((invite) => ({
+      email: invite.email,
+      role: invite.role,
+      expiresAt: new Date(invite.expiresAt).toISOString(),
+    }));
 
 /**
  * Admin list card.
@@ -13,7 +25,7 @@ export function serializeClientListItem(tenant) {
   return {
     id: tenant.id,
     name: tenant.name,
-    email: ownerEmail(tenant.users),
+    email: ownerEmail(tenant.users, tenant.invites),
     status: tenant.status,
     usersCount: tenant.users.length,
     modulesCount: enabledModuleIds(tenant.modules).length,
@@ -37,7 +49,7 @@ export function serializeClientDetail(tenant, usage) {
   return {
     id: tenant.id,
     name: tenant.name,
-    email: ownerEmail(tenant.users),
+    email: ownerEmail(tenant.users, tenant.invites),
     status: tenant.status,
     usersCount: tenant.users.length,
     modulesCount: moduleIds.length,
@@ -46,5 +58,6 @@ export function serializeClientDetail(tenant, usage) {
     createdAt: tenant.createdAt,
     moduleIds,
     users,
+    pendingInvites: pendingInvites(tenant.invites),
   };
 }

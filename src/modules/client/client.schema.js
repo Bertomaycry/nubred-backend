@@ -85,6 +85,16 @@ const uniqueUrlCreate = z
     if (message) ctx.addIssue({ code: "custom", message });
   });
 
+/** @returns {{ ok: true, data: string } | { ok: false, message: string }} */
+export function parseUniqueUrl(value) {
+  const result = uniqueUrlCreate.safeParse(value);
+  if (result.success) return { ok: true, data: result.data };
+  return {
+    ok: false,
+    message: result.error.issues[0]?.message ?? "Unique URL is required.",
+  };
+}
+
 export const createClientSchema = z.object({
   companyName,
   maxProjects,

@@ -32,9 +32,7 @@ Content-Type: application/json
 
 `X-Tenant-Slug` is **not** sent on `/api/admin/clients`. It is only for tenant-workspace calls (section 8).
 
-CORS already allows `http://localhost:5173`, `https://gov.nubred.com`, `https://governance.nubred.com`, `https://preview.nubred.com`, `https://node.nubred.com` (and the `www.` variants of those). Allowed request headers include `Authorization`, `Content-Type`, `X-Tenant-Slug`.
-
-**Gap:** `https://{slug}.gov.nubred.com` is not in the API CORS allowlist yet. The admin origin `https://gov.nubred.com` is fine. A tenant app served from a client subdomain will be blocked by the browser until that allowlist is updated. Localhost is fine.
+CORS allows `http://localhost:5173`, `https://gov.nubred.com`, `https://gov.preview.nubred.com`, `https://governance.nubred.com`, `https://preview.nubred.com`, `https://node.nubred.com` (and the `www.` variants of those). It also allows a client workspace `https://{slug}.gov.nubred.com` and `https://{slug}.gov.preview.nubred.com` when `{slug}` is a valid client slug. Allowed request headers include `Authorization`, `Content-Type`, `X-Tenant-Slug`.
 
 ---
 
@@ -163,6 +161,18 @@ Empty list: `data: []`, `total: 0`, `totalPages: 0`, `from: 0`, `to: 0`.
 
 ## 4. Create
 
+On step 1 Next, before opening Module Configuration:
+
+`GET /api/admin/clients/slug-available?uniqueUrl={slug}`
+
+Admin auth. No `X-Tenant-Slug`. `uniqueUrl` is the slug only (`agri-levante`), lowercased by the server.
+
+`200` `{ "success": true }` — go to step 2. Do not toast.
+
+`409` `{ "success": false, "message": "This unique URL is already in use." }` — stay on step 1 and toast `message`. Same text as a failed create.
+
+`400` — toast `message` (`Unique URL is required.`, format, or `This unique URL is reserved.`).
+
 `POST /api/admin/clients`
 
 Body: section 2. This provisions a database and a bucket. It can take longer than a normal save. Do not retry on a slow response; a retry with the same slug, after success, is `409`.
@@ -179,13 +189,13 @@ Body: section 2. This provisions a database and a bucket. It can take longer tha
 
 Toast `message`. `data.id` is the detail-page id. Today the UI can still go back to the list.
 
-If the invitation email could not be sent to someone who has no NuBred account yet, the client **is** created and the response also has:
+If an invitation email could not be sent, the client **is** created and the response also has:
 
 ```json
 "inviteFailures": [{ "email": "pm@agrilevante.com", "reason": "..." }]
 ```
 
-The field is absent when every invite succeeded (or every address already had an account). People who already have an account are not emailed; they sign in and are linked by email.
+The field is absent when every invite email was sent. Nobody is a member until they accept. A failed email is not in `pendingInvites`.
 
 | Status | `message` |
 |---|---|
@@ -223,6 +233,13 @@ The field is absent when every invite succeeded (or every address already had an
         "timeUsage": { "all_time": 120, "this_month": 18, "this_week": 6, "today": 1.5 },
         "tokenUsage": { "all_time": 840, "this_month": 120, "this_week": 40, "today": 0 }
       }
+    ],
+    "pendingInvites": [
+      {
+        "email": "pm@agrilevante.com",
+        "role": "project_manager",
+        "expiresAt": "2026-11-13T09:00:00.000Z"
+      }
     ]
   }
 }
@@ -233,7 +250,10 @@ The field is absent when every invite succeeded (or every address already had an
 - `tokenUsage` values are **integer credits**, not raw tokens.
 - All four periods are always present, including zeros. The bar skips zeros. The UI sums the bar; the API does not return percentages.
 - Period keys: `today`, `this_week`, `this_month`, `all_time`. Windows are UTC (today from 00:00Z, week from Monday 00:00Z, month from the 1st 00:00Z).
-- Users with no usage are still listed.
+- `users` are people who have joined. `usersCount` is that list only. The usage chart uses `users`.
+- `pendingInvites` are emails that have not accepted. `expiresAt` is ISO. They have no usage.
+- `email` is the owner. It is set when the owner is still pending, and `usersCount` can be `0`.
+- Build the edit form from `users` plus `pendingInvites`, and submit that combined list as `users`. Leaving a pending email out revokes it.
 - One request is enough for every period. Do not refetch when the period menu changes.
 - Unknown id, or a client that never finished provisioning: `404` `Client not found`.
 
@@ -249,12 +269,13 @@ Same body as create. This does **not** provision again and does **not** change t
 
 `uniqueUrl`: send the stored slug (the form keeps the field). If it differs from the stored slug, even by case after lowercasing: `400` `The custom URL cannot be edited.` Omitting it is allowed.
 
-`users` is the full desired set, not a diff:
+`users` is the full desired set, including people who have not accepted:
 
-- Email not in the list → that person loses access to this client. Their past usage stays in the database but they disappear from this payload.
-- New email → access is added. Same invite behaviour as create (`inviteFailures` may be present).
-- Same email, new role → role is updated.
-- The payload must still contain exactly one owner. Changing the owner means a new email with role `owner` and the old owner removed (or their role changed). Do not submit zero owners.
+- Email not in the list → a member loses access, or a pending invite is revoked. Past usage stays in the database. They disappear from `users`.
+- New email → a pending invite is sent. They are not a member yet. `inviteFailures` may be present.
+- Same pending email → no second email. A role change is saved on the invite.
+- Same member email, new role → the membership role is updated.
+- The payload must still contain exactly one owner.
 
 `modules` replaces every flag. Turning one off does not delete data or past usage. It blocks new use (section 8).
 

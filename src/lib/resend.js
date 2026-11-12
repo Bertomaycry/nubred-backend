@@ -1,6 +1,11 @@
 import { Resend } from "resend";
+import { clientInvitationCopy } from "../modules/client/invitation-copy.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend;
+const getResend = () => {
+  if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
+  return resend;
+};
 
 const DEFAULT_LOGO_URL =
   "https://res.cloudinary.com/dyjd91mmm/image/upload/f_png/v1779787100/Nubred/nubred_logo_wgxsld.svg";
@@ -66,7 +71,7 @@ export const sendEarlyAdopterConfirmation = async (email, app) => {
 
   const { subject } = APP_EMAIL_CONTENT[app];
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from,
     to: email,
     subject,
@@ -127,7 +132,7 @@ export const sendProjectInvitation = async ({
     </html>
   `;
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from,
     to: email,
     subject: `You were invited to ${projectName} on NuBred`,
@@ -149,6 +154,7 @@ export const sendClientInvitation = async ({
   roleLabel,
   acceptUrl,
   expiresInDays,
+  existing = false,
 }) => {
   const from = process.env.RESEND_FROM_EMAIL;
 
@@ -158,6 +164,12 @@ export const sendClientInvitation = async ({
 
   const logoUrl = process.env.NUBRED_LOGO_URL || DEFAULT_LOGO_URL;
   const safeUrl = escapeHtml(acceptUrl);
+  const copy = clientInvitationCopy({
+    companyName,
+    roleLabel,
+    expiresInDays,
+    existing,
+  });
   const html = `
     <!DOCTYPE html>
     <html lang="en">
@@ -173,11 +185,10 @@ export const sendClientInvitation = async ({
                 </tr>
                 <tr>
                   <td style="padding: 32px 24px; font-family: Arial, Helvetica, sans-serif; line-height: 1.6; color: #111111;">
-                    <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600;">You're invited to ${escapeHtml(companyName)}</h2>
-                    <p style="margin: 0 0 16px;">You have been added to <strong>${escapeHtml(companyName)}</strong> on NuBred as <strong>${escapeHtml(roleLabel)}</strong>.</p>
-                    <p style="margin: 0 0 24px;">This invitation expires in ${escapeHtml(expiresInDays)} days.</p>
+                    <h2 style="margin: 0 0 16px; font-size: 22px; font-weight: 600;">${escapeHtml(copy.heading)}</h2>
+                    <p style="margin: 0 0 24px;">${escapeHtml(copy.body)}</p>
                     <p style="margin: 0 0 24px;">
-                      <a href="${safeUrl}" style="display: inline-block; background-color: #111111; color: #ffffff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600;">Accept invitation</a>
+                      <a href="${safeUrl}" style="display: inline-block; background-color: #111111; color: #ffffff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600;">${copy.button}</a>
                     </p>
                     <p style="margin: 0 0 16px; font-size: 14px; color: #444444;">If the button does not work, copy this link into your browser:<br /><a href="${safeUrl}">${safeUrl}</a></p>
                     <p style="margin: 0;">— The NuBred Team</p>
@@ -191,10 +202,10 @@ export const sendClientInvitation = async ({
     </html>
   `;
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from,
     to: email,
-    subject: `You're invited to ${companyName} on NuBred`,
+    subject: copy.subject,
     html,
   });
 

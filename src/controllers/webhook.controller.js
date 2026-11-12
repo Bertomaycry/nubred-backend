@@ -1,5 +1,7 @@
 import { Webhook } from "svix";
 import prisma from "../lib/prisma.js";
+import { ClientError } from "../modules/client/errors.js";
+import { acceptInviteFromWebhook } from "../modules/client/invites.js";
 
 /**
  * Phone from Clerk-native field or from custom signup (unsafeMetadata.phoneNumber).
@@ -118,6 +120,23 @@ export const handleClerkWebhook = async (req, res) => {
           await prisma.user.deleteMany({
             where: { clerkUserId: data.id },
           });
+        }
+        break;
+      }
+
+      case "invitation.accepted": {
+        console.log("CLERK_WEBHOOK: invitation.accepted", data?.id);
+        try {
+          await acceptInviteFromWebhook({
+            prisma,
+            invitationId: data?.id,
+          });
+        } catch (error) {
+          if (error instanceof ClientError) {
+            console.warn(`invitation.accepted ${data?.id}: ${error.message}`);
+            break;
+          }
+          throw error;
         }
         break;
       }

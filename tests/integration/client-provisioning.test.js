@@ -112,12 +112,18 @@ run("client provisioning (real Postgres)", () => {
     expect(await db.projectMember.count()).toBe(0);
   });
 
-  test("users and 13 module flags are stored", async () => {
+  test("users stay pending and 13 module flags are stored", async () => {
     const tenant = await prisma.tenant.findUnique({
       where: { slug },
-      include: { users: true, modules: true },
+      include: { users: true, invites: true, modules: true },
     });
-    expect(tenant.users.map((u) => u.role).sort()).toEqual(["owner", "project_manager"]);
+    expect(tenant.users).toEqual([]);
+    expect(
+      tenant.invites
+        .filter((invite) => invite.status === "pending")
+        .map((invite) => invite.role)
+        .sort()
+    ).toEqual(["owner", "project_manager"]);
     expect(tenant.modules).toHaveLength(13);
     expect(tenant.modules.filter((m) => m.enabled).map((m) => m.moduleId)).toEqual(["contract"]);
   });
@@ -148,15 +154,19 @@ run("client provisioning (real Postgres)", () => {
 
     const after = await prisma.tenant.findUnique({
       where: { id: tenant.id },
-      include: { users: true, modules: true },
+      include: { users: true, invites: true, modules: true },
     });
     expect(after.name).toBe("Renamed Co");
     expect(after.slug).toBe(slug);
     expect(after.databaseName).toBe(databaseName);
-    expect(after.users.map((u) => u.email).sort()).toEqual([
-      `owner-${slug}@example.com`,
-      `viewer-${slug}@example.com`,
-    ]);
+    expect(after.users).toEqual([]);
+    expect(
+      after.invites
+        .filter((invite) => invite.status === "pending")
+        .map((invite) => invite.email)
+        .sort()
+    ).toEqual([`owner-${slug}@example.com`, `viewer-${slug}@example.com`]);
+    expect(invites).toEqual([`viewer-${slug}@example.com`]);
     expect(after.modules.filter((m) => m.enabled).map((m) => m.moduleId)).toEqual(["todo"]);
   });
 });
