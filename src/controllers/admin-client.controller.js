@@ -7,9 +7,10 @@ import {
 import {
   parseCreateClient,
   parseRestrictReason,
+  parseUniqueUrl,
   parseUpdateClient,
 } from "../modules/client/client.schema.js";
-import { ClientError, provisionClient } from "../modules/client/provision.js";
+import { ClientError, checkSlugAvailable, provisionClient } from "../modules/client/provision.js";
 import { updateClient } from "../modules/client/update.js";
 import {
   serializeClientDetail,
@@ -99,6 +100,18 @@ export const listClients = asyncHandler(async (req, res) => {
     data: tenants.map(serializeClientListItem),
     pagination: buildPaginationMeta({ page, limit: pageSize, total }),
   });
+});
+
+// @desc    Check a unique URL before the Add Client wizard leaves step 1
+// @route   GET /api/admin/clients/slug-available?uniqueUrl=
+// @access  Private/Admin
+export const checkClientSlug = asyncHandler(async (req, res) => {
+  const parsed = parseUniqueUrl(req.query.uniqueUrl);
+  if (!parsed.ok) throw validationError(parsed.message);
+
+  await checkSlugAvailable(parsed.data);
+
+  res.status(200).json({ success: true });
 });
 
 // @desc    Add a client (provisions database + bucket)

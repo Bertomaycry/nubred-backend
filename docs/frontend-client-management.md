@@ -161,6 +161,18 @@ Empty list: `data: []`, `total: 0`, `totalPages: 0`, `from: 0`, `to: 0`.
 
 ## 4. Create
 
+On step 1 Next, before opening Module Configuration:
+
+`GET /api/admin/clients/slug-available?uniqueUrl={slug}`
+
+Admin auth. No `X-Tenant-Slug`. `uniqueUrl` is the slug only (`agri-levante`), lowercased by the server.
+
+`200` `{ "success": true }` — go to step 2. Do not toast.
+
+`409` `{ "success": false, "message": "This unique URL is already in use." }` — stay on step 1 and toast `message`. Same text as a failed create.
+
+`400` — toast `message` (`Unique URL is required.`, format, or `This unique URL is reserved.`).
+
 `POST /api/admin/clients`
 
 Body: section 2. This provisions a database and a bucket. It can take longer than a normal save. Do not retry on a slow response; a retry with the same slug, after success, is `409`.

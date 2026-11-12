@@ -11,10 +11,9 @@ import { clientRoleLabel } from "./roles.js";
 import { sendClientInvitation } from "../../lib/resend.js";
 import { INVITE_EXPIRES_IN_DAYS, invitePendingUsers } from "./invites.js";
 import { ClientError } from "./errors.js";
+import { assertSlugAvailable, SLUG_TAKEN } from "./slug-availability.js";
 
 export { ClientError };
-
-const SLUG_TAKEN = "This unique URL is already in use.";
 
 // ---------------------------------------------------------------------------
 // Real side effects, replaceable in tests.
@@ -46,6 +45,11 @@ function defaultDeps(prisma) {
 
     inviteEmail: inviteClientUser,
   };
+}
+
+/** Step-1 check. Same 409 as create when the slug is already in use. */
+export function checkSlugAvailable(slug) {
+  return assertSlugAvailable(slug, defaultDeps(prismaDefault));
 }
 
 /**
@@ -147,18 +151,9 @@ export async function provisionClient(input, overrides = {}) {
   const storage = await deps.storage();
 
   // A failed earlier attempt may be retried only if it left nothing behind.
-  const existing = await prisma.tenant.findUnique({ where: { slug } });
+  const existing = await assertSlugAvailable(slug, deps);
   if (existing) {
-    if (existing.provisioningStatus !== "failed") {
-      throw new ClientError(409, SLUG_TAKEN);
-    }
     await prisma.tenant.delete({ where: { id: existing.id } });
-  }
-  if (
-    (await deps.databaseExists(databaseName)) ||
-    (await storage.bucketExists(bucketName))
-  ) {
-    throw new ClientError(409, SLUG_TAKEN);
   }
 
   let tenant;

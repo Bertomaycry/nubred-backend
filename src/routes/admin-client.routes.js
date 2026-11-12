@@ -2,6 +2,7 @@ import express from "express";
 import { protect, isAdmin } from "../middlewares/auth.middleware.js";
 import {
   listClients,
+  checkClientSlug,
   createClient,
   getClient,
   putClient,
@@ -14,6 +15,7 @@ const router = express.Router();
 router.use(...protect, isAdmin);
 
 router.get("/", listClients);
+router.get("/slug-available", checkClientSlug);
 router.post("/", createClient);
 router.get("/:id", getClient);
 router.put("/:id", putClient);
