@@ -14,29 +14,18 @@ import adminClientRoutes from "./routes/admin-client.routes.js";
 import adminMasterFilterRoutes from "./routes/admin-master-filter.routes.js";
 import masterFilterRoutes from "./routes/master-filter.routes.js";
 import usageRoutes from "./routes/usage.routes.js";
+import invitationRoutes from "./routes/invitation.routes.js";
+import { isAllowedApiOrigin } from "./lib/api-cors.js";
 
 const app = express();
 
-// CORS configuration - must be before routes
+// CORS configuration - must be before routes.
+// credentials: true, so the matching origin is echoed. A "*" entry would not.
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://nubred.com",
-      "https://www.nubred.com",
-      "https://preview.nubred.com",
-      "https://www.preview.nubred.com",
-      "https://node.preview.nubred.com",
-      "https://www.node.preview.nubred.com",
-      "https://governance.nubred.com",
-      "https://www.governance.nubred.com",
-      "https://gov.preview.nubred.com",
-      "https://www.gov.preview.nubred.com",
-      "https://gov.nubred.com",
-      "https://www.gov.nubred.com",
-      "https://node.nubred.com",
-      "https://www.node.nubred.com",
-    ],
+    origin(origin, callback) {
+      callback(null, isAllowedApiOrigin(origin));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Slug"],
     credentials: true,
@@ -76,6 +65,7 @@ app.use("/api/admin/clients", adminClientRoutes);
 app.use("/api/admin/master-filters", adminMasterFilterRoutes);
 app.use("/api/master-filters", masterFilterRoutes);
 app.use("/api/usage", usageRoutes);
+app.use("/api/invitations", invitationRoutes);
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });

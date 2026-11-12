@@ -331,7 +331,7 @@ Frontend integration contracts. Copy these into the frontend repo.
 | `review.md` | GET section, PATCH fields, Gaps tab, POST confirm |
 | `chat.md` | Nubred AI chatbot on the review screen |
 | `frontend-master-filters.md` | Admin Master Filter UI + tenant suggestion upload |
-| `frontend-client-invite-signup.md` | Invited client user: `/accept-invitation` (no onboarding) |
+| `frontend-client-invite-signup.md` | Invited client user stays pending until `/accept-invitation` |
 
 ---
 
@@ -357,7 +357,7 @@ Step 1 of Project Creation. Enums match the Zod constants in `src/modules/projec
 
 | Group | Models |
 |-------|--------|
-| Tenant isolation | Database per client (`nubred_{slug}`, schema `prisma/tenant/schema.prisma`) + bucket per client. Platform DB holds `Tenant`, `TenantUser`, `TenantModule`, usage ledgers, `Job` (see below) |
+| Tenant isolation | Database per client (`nubred_{slug}`, schema `prisma/tenant/schema.prisma`) + bucket per client. Platform DB holds `Tenant`, `TenantUser`, `TenantInvite` (pending until accept), `TenantModule`, usage ledgers, `Job` (see below) |
 | Project & actors | `Project`, `ProjectMember` (project-scoped role + Active/Pending), `Farm`, `Plot` |
 | Documents | `Document` (S3 `storageKey`, never a public URL), `DocumentPage` (text + page number for Why Button offsets) |
 | Provenance | `ExtractionRun`, `SectionExtraction`, `EvidenceItem`, `FieldOverride`, `SectionConfirmation` |
@@ -371,7 +371,7 @@ Everything above except Queue lives in the **tenant** schema. User columns (`cre
 
 ### Client management (admin)
 
-Spec: [`NuBred_Client_Module_Backend_Guide.html`](./NuBred_Client_Module_Backend_Guide.html). Code: `src/modules/client/` (modules, roles, slug, zod schema, `provision.js`, `update.js`, `usage.js`, `serialize.js`), `src/controllers/admin-client.controller.js` (`/api/admin/clients`), `usage.controller.js` (`POST /api/usage/heartbeat`), `llm/usage.js` (`recordAiUsage`, not wired yet).
+Spec: [`NuBred_Client_Module_Backend_Guide.html`](./NuBred_Client_Module_Backend_Guide.html). Code: `src/modules/client/` (modules, roles, slug, zod schema, `provision.js`, `update.js`, `invites.js`, `usage.js`, `serialize.js`), `src/controllers/admin-client.controller.js` (`/api/admin/clients`), `src/controllers/invitation.controller.js` (`POST /api/invitations/accept`), `usage.controller.js` (`POST /api/usage/heartbeat`), `llm/usage.js` (`recordAiUsage`, not wired yet). A client save stores pending invites, not members. `tenant_users` is written when the person accepts.
 
 | Prisma schema | Client | Migrations |
 |---|---|---|

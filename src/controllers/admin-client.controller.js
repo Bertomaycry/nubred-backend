@@ -21,7 +21,19 @@ const NOT_FOUND = "Client not found";
 const DEFAULT_LIMIT = 6;
 const MAX_LIMIT = 50;
 
-const include = { users: true, modules: true };
+const pendingOwnerInclude = () => ({
+  users: true,
+  modules: true,
+  invites: {
+    where: { status: "pending", role: "owner", expiresAt: { gt: new Date() } },
+  },
+});
+
+const detailInclude = () => ({
+  users: true,
+  modules: true,
+  invites: { where: { status: "pending", expiresAt: { gt: new Date() } } },
+});
 
 const validationError = (message) => new ClientError(400, message);
 
@@ -56,6 +68,16 @@ export const listClients = asyncHandler(async (req, res) => {
                 },
               },
             },
+            {
+              invites: {
+                some: {
+                  role: "owner",
+                  status: "pending",
+                  expiresAt: { gt: new Date() },
+                  email: { contains: search, mode: "insensitive" },
+                },
+              },
+            },
           ],
         }
       : {}),
@@ -65,7 +87,7 @@ export const listClients = asyncHandler(async (req, res) => {
     prisma.tenant.count({ where }),
     prisma.tenant.findMany({
       where,
-      include,
+      include: pendingOwnerInclude(),
       orderBy: { createdAt: "desc" },
       skip,
       take: pageSize,
@@ -99,7 +121,7 @@ export const createClient = asyncHandler(async (req, res) => {
 async function loadReadyTenant(id) {
   const tenant = await prisma.tenant.findFirst({
     where: { id, provisioningStatus: "ready" },
-    include,
+    include: detailInclude(),
   });
   if (!tenant) throw new ClientError(404, NOT_FOUND);
   return tenant;

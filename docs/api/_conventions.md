@@ -20,11 +20,10 @@ Notes:
   - X-Tenant-Slug is a selector only; it never grants access. The backend authorises from the user's tenant_users row (client added by a NuBred admin).
   - One membership: the header may be omitted. Several: omitting it returns 400 "Select a workspace."
   - Not a member of that slug, or client restricted / not ready: 403.
-  - CORS allows Authorization and X-Tenant-Slug. Frontend origin must be one of:
-      http://localhost:5173
-      https://preview.nubred.com
-      https://governance.nubred.com
-      https://node.nubred.com
+  - CORS allows Authorization and X-Tenant-Slug. Frontend origin must be an apex host
+    (http://localhost:5173, https://gov.nubred.com, https://gov.preview.nubred.com, and the
+    other hosts in src/lib/api-cors.js) or a client workspace
+    https://{slug}.gov.nubred.com / https://{slug}.gov.preview.nubred.com.
   - JSON body limit is 50 KB. File bytes never go through this API.
 
 

@@ -9,15 +9,10 @@ import { MODULE_IDS } from "./modules.js";
 import { acceptInvitationUrl, bucketNameFor, databaseNameFor } from "./slug.js";
 import { clientRoleLabel } from "./roles.js";
 import { sendClientInvitation } from "../../lib/resend.js";
+import { INVITE_EXPIRES_IN_DAYS, invitePendingUsers } from "./invites.js";
+import { ClientError } from "./errors.js";
 
-/** An error asyncHandler answers with as-is (it reads `code` as the HTTP status). */
-export class ClientError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-    this.code = status;
-  }
-}
+export { ClientError };
 
 const SLUG_TAKEN = "This unique URL is already in use.";
 
@@ -53,14 +48,20 @@ function defaultDeps(prisma) {
   };
 }
 
-/** Clerk invitation lifetime. Whole days; 2 ≈ 48 hours. */
-export const INVITE_EXPIRES_IN_DAYS = 2;
-
 /**
  * Clerk creates the ticket link and does not email (notify: false).
- * Resend sends that link, with the company name and role.
+ * Resend sends that link. `existing` picks the sentence for someone who
+ * already has a NuBred account.
+ * @returns {Promise<{ invitationId: string | null }>}
  */
-export async function inviteClientUser({ email, role, companyName, slug }) {
+export async function inviteClientUser({
+  email,
+  role,
+  companyName,
+  slug,
+  tenantId,
+  existing = false,
+}) {
   const { clerkClient } = await import("../../middlewares/auth.middleware.js");
   const invitation = await clerkClient.invitations.createInvitation({
     emailAddress: email,
@@ -69,6 +70,7 @@ export async function inviteClientUser({ email, role, companyName, slug }) {
       companyName,
       roleLabel: clientRoleLabel(role),
     }),
+    publicMetadata: { tenantId, slug },
     ignoreExisting: true,
     expiresInDays: INVITE_EXPIRES_IN_DAYS,
     notify: false,
@@ -82,7 +84,9 @@ export async function inviteClientUser({ email, role, companyName, slug }) {
     roleLabel: clientRoleLabel(role),
     acceptUrl: invitation.url,
     expiresInDays: INVITE_EXPIRES_IN_DAYS,
+    existing,
   });
+  return { invitationId: invitation.id ?? null };
 }
 
 // ---------------------------------------------------------------------------
@@ -107,43 +111,6 @@ export async function assertNotAdmins(prisma, emails) {
       `${admins[0].email} is a NuBred admin and cannot be added as a client user.`
     );
   }
-}
-
-/**
- * Invite people who don't have a NuBred login yet. Existing accounts just
- * sign in. Failures are reported, never thrown: the client is already saved.
- *
- * @returns {Promise<Array<{ email: string, reason: string }>>}
- */
-export async function inviteNewUsers({ slug, companyName, users, deps }) {
-  const failures = [];
-  if (users.length === 0) return failures;
-
-  const existing = await deps.prisma.user.findMany({
-    where: {
-      OR: users.map((user) => ({
-        email: { equals: user.email, mode: "insensitive" },
-      })),
-    },
-    select: { email: true },
-  });
-  const known = new Set(existing.map((u) => u.email.toLowerCase()));
-
-  for (const user of users) {
-    if (known.has(user.email)) continue;
-    try {
-      await deps.inviteEmail({
-        email: user.email,
-        role: user.role,
-        companyName,
-        slug,
-      });
-    } catch (error) {
-      console.warn(`Invitation for ${user.email} failed: ${error.message}`);
-      failures.push({ email: user.email, reason: error.message });
-    }
-  }
-  return failures;
 }
 
 export const moduleRows = (tenantId, modules) =>
@@ -224,18 +191,9 @@ export async function provisionClient(input, overrides = {}) {
     await storage.createBucket(bucketName);
     createdBucket = true;
 
-    await prisma.$transaction([
-      prisma.tenantUser.createMany({
-        data: input.users.map((u) => ({
-          tenantId: tenant.id,
-          email: u.email,
-          role: u.role,
-        })),
-      }),
-      prisma.tenantModule.createMany({
-        data: moduleRows(tenant.id, input.modules),
-      }),
-    ]);
+    await prisma.tenantModule.createMany({
+      data: moduleRows(tenant.id, input.modules),
+    });
 
     tenant = await prisma.tenant.update({
       where: { id: tenant.id },
@@ -267,8 +225,9 @@ export async function provisionClient(input, overrides = {}) {
     throw new ClientError(500, "Could not set up this client. Try again.");
   }
 
-  // Saved. Invitations are best effort.
-  const inviteFailures = await inviteNewUsers({
+  // Saved. Membership waits until each person accepts. Email is best effort.
+  const inviteFailures = await invitePendingUsers({
+    tenantId: tenant.id,
     slug,
     companyName: input.companyName,
     users: input.users,

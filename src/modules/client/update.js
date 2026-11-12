@@ -1,29 +1,30 @@
 import prismaDefault from "../../lib/prisma.js";
+import { ClientError } from "./errors.js";
+import { assertNotAdmins, inviteClientUser, moduleRows } from "./provision.js";
 import {
-  ClientError,
-  assertNotAdmins,
-  inviteNewUsers,
-  inviteClientUser,
-  moduleRows,
-} from "./provision.js";
+  invitePendingUsers,
+  planMembershipChanges,
+  revokeClerkInvitation,
+} from "./invites.js";
 
 /**
  * Apply Changes. Never provisions: slug, database and bucket stay as created.
  *
- * `users` is the full desired set. New email -> access + invitation.
- * Missing email -> access revoked (tenant_users row deleted; usage rows stay).
- * Same email, other role -> role updated.
+ * `users` is the full desired set, including people who have not accepted.
+ * A new email becomes a pending invite. An open pending invite is not emailed
+ * again. A missing email revokes a pending invite or removes a member.
  *
  * @param {string} id tenant id
  * @param {{ companyName, maxProjects, uniqueUrl?, users, modules }} input validated
- * @param {object} [overrides] test doubles ({ prisma, inviteEmail })
+ * @param {object} [overrides] test doubles ({ prisma, inviteEmail, revokeInvitation })
  */
 export async function updateClient(id, input, overrides = {}) {
   const prisma = overrides.prisma ?? prismaDefault;
+  const revokeInvitation = overrides.revokeInvitation ?? revokeClerkInvitation;
 
   const tenant = await prisma.tenant.findFirst({
     where: { id, provisioningStatus: "ready" },
-    include: { users: true },
+    include: { users: true, invites: true },
   });
   if (!tenant) throw new ClientError(404, "Client not found");
 
@@ -31,50 +32,63 @@ export async function updateClient(id, input, overrides = {}) {
     throw new ClientError(400, "The custom URL cannot be edited.");
   }
 
-  const current = new Map(tenant.users.map((u) => [u.email, u]));
-  const desired = new Map(input.users.map((u) => [u.email, u]));
+  const plan = planMembershipChanges({
+    members: tenant.users,
+    invites: tenant.invites,
+    desired: input.users,
+  });
 
-  const removed = tenant.users.filter((u) => !desired.has(u.email));
-  const added = input.users.filter((u) => !current.has(u.email));
-  const changed = input.users.filter(
-    (u) => current.has(u.email) && current.get(u.email).role !== u.role
-  );
+  const addedEmails = plan.toInvite.map((user) => user.email);
+  if (addedEmails.length > 0) {
+    await assertNotAdmins(prisma, addedEmails);
+  }
 
-  await assertNotAdmins(
-    prisma,
-    added.map((u) => u.email)
-  );
-
-  // Order matters only for the owner swap: free the old owner role first.
   await prisma.$transaction([
     prisma.tenant.update({
       where: { id },
       data: { name: input.companyName, maxProjects: input.maxProjects },
     }),
     prisma.tenantUser.deleteMany({
-      where: { id: { in: removed.map((u) => u.id) } },
+      where: { id: { in: plan.removedMembers.map((user) => user.id) } },
     }),
-    ...changed.map((u) =>
+    ...plan.changedMembers.map((user) =>
       prisma.tenantUser.update({
-        where: { id: current.get(u.email).id },
-        data: { role: u.role },
+        where: { id: tenant.users.find((row) => row.email === user.email).id },
+        data: { role: user.role },
       })
     ),
-    prisma.tenantUser.createMany({
-      data: added.map((u) => ({
-        tenantId: id,
-        email: u.email,
-        role: u.role,
-      })),
-    }),
+    ...plan.changedPending.map((user) =>
+      prisma.tenantInvite.update({
+        where: {
+          id: tenant.invites.find((row) => row.email === user.email).id,
+        },
+        data: { role: user.role },
+      })
+    ),
+    ...plan.removedPending.map((invite) =>
+      prisma.tenantInvite.update({
+        where: { id: invite.id },
+        data: { status: "revoked" },
+      })
+    ),
     prisma.tenantModule.deleteMany({ where: { tenantId: id } }),
     prisma.tenantModule.createMany({ data: moduleRows(id, input.modules) }),
   ]);
 
-  const inviteFailures = await inviteNewUsers({
+  for (const invite of plan.removedPending) {
+    if (!invite.clerkInvitationId) continue;
+    await Promise.resolve(revokeInvitation(invite.clerkInvitationId)).catch((error) =>
+      console.warn(
+        `Could not revoke invitation ${invite.clerkInvitationId}: ${error.message}`
+      )
+    );
+  }
+
+  const inviteFailures = await invitePendingUsers({
+    tenantId: tenant.id,
     slug: tenant.slug,
     companyName: input.companyName,
-    users: added,
+    users: plan.toInvite,
     deps: {
       prisma,
       inviteEmail: overrides.inviteEmail ?? inviteClientUser,

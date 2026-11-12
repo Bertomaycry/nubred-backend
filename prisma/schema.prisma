@@ -220,6 +220,13 @@ enum TenantUserRole {
   viewer
 }
 
+enum TenantInviteStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
 enum RestrictionAction {
   restrict
   reactivate
@@ -244,6 +251,7 @@ model Tenant {
   updatedAt DateTime @updatedAt
 
   users        TenantUser[]
+  invites      TenantInvite[]
   modules      TenantModule[]
   restrictions TenantRestriction[]
   jobs         Job[]
@@ -269,6 +277,27 @@ model TenantUser {
   @@index([clerkUserId])
   @@index([email])
   @@map("tenant_users")
+}
+
+// A person is not a member until they accept. One row per email per client.
+model TenantInvite {
+  id                String             @id @default(uuid())
+  tenantId          String
+  email             String // stored lowercase
+  role              TenantUserRole
+  clerkInvitationId String?
+  expiresAt         DateTime
+  status            TenantInviteStatus @default(pending)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([status, expiresAt])
+  @@index([clerkInvitationId])
+  @@map("tenant_invites")
 }
 
 model TenantModule {

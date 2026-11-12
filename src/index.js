@@ -3,6 +3,7 @@ import connectDB from "./db/index.js";
 import app from "./app.js";
 import { scheduleUnregisterJob } from "./crons/unregisterJob.js";
 import { scheduleExpireFilterUploads } from "./crons/expire-filter-uploads.js";
+import { scheduleExpireTenantInvites } from "./crons/expire-tenant-invites.js";
 import { initStorage } from "./modules/project/storage/provider.js";
 import { ensurePlatformBucket } from "./modules/master-filter/platform-bucket.js";
 import { initProvider } from "./modules/project/llm/provider.js";
@@ -14,6 +15,7 @@ import {
 if (isPrimaryProcess()) {
   scheduleUnregisterJob();
   scheduleExpireFilterUploads();
+  scheduleExpireTenantInvites();
 }
 
 connectDB()
