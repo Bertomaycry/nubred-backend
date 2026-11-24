@@ -1,6 +1,8 @@
 export const MODEL_UNAVAILABLE_MESSAGE =
   "The extraction model is temporarily unavailable. Nothing was saved for this section. Try again in a few minutes.";
 
+export const UPSTREAM_FAILED_SKIP_REASON = "upstream extract failed";
+
 /**
  * Short copy for a failed extraction step. Raw provider text stays in logs.
  * @param {unknown} raw
@@ -60,11 +62,14 @@ export function noticeForSection(steps, sectionKey, chipAll, runStatus) {
   const failed = mine.filter((step) => step.status === "FAILED");
   if (failed.length) return userFacingStepError(failed[0].error);
 
+  const succeeded = mine.some((step) => step.status === "SUCCEEDED");
+  const upstreamSkip = mine.find((step) => step.status === "SKIPPED" && step.error);
+  if (!succeeded && upstreamSkip) return upstreamSkip.error;
+
   if (!mine.length && chipAll === 0 && (runStatus === "PARTIAL" || runStatus === "FAILED")) {
     return "This section was not filled because extraction did not complete.";
   }
 
-  const succeeded = mine.some((step) => step.status === "SUCCEEDED");
   if (succeeded && chipAll === 0) {
     return "Extraction finished and no fields were saved for this section.";
   }

@@ -43,12 +43,16 @@ app.use("/webhooks", webhookRoutes);
 app.use(clerkMiddleware());
 
 const json50kb = express.json({ limit: "50kb" });
+const json1mb = express.json({ limit: "1mb" });
 const json3mb = express.json({ limit: "3mb" });
 app.use((req, res, next) => {
-  const largePatch =
-    req.method === "PATCH" &&
-    /^\/api\/admin\/master-filters\/[^/]+$/.test(req.path);
-  return (largePatch ? json3mb : json50kb)(req, res, next);
+  if (req.method === "PATCH" && /^\/api\/admin\/master-filters\/[^/]+$/.test(req.path)) {
+    return json3mb(req, res, next);
+  }
+  if (req.method === "PATCH" && /^\/api\/projects\/[^/]+\/sections\/[^/]+\/fields$/.test(req.path)) {
+    return json1mb(req, res, next);
+  }
+  return json50kb(req, res, next);
 });
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));

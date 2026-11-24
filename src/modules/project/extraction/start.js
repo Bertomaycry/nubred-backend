@@ -3,6 +3,7 @@ import { planExtractionSteps } from "./plan-run.js";
 import { documentUnprocessed, sortDocumentsForPipeline } from "./document-order.js";
 import { advanceExtractionRun, enqueueDeriveSections } from "./chain.js";
 import { enabledSectionKeys } from "../access/section-modules.js";
+import { sectionDependents } from "../sections/dependents.js";
 
 /**
  * Create an ExtractionRun + ExtractionStep chain (v2).
@@ -14,6 +15,7 @@ export async function startExtractionRun({
   enabledModules,
   scope = "full",
   sectionKey = null,
+  cascade = false,
 }) {
   const documents = await db.document.findMany({
     where: {
@@ -68,13 +70,18 @@ export async function startExtractionRun({
 
   if (scope.startsWith("section:")) {
     const key = sectionKey || scope.replace("section:", "");
-    steps = steps.filter((s) => s.sectionKey === key);
-    if (!steps.length) {
+    const order = cascade
+      ? [key, ...sectionDependents(key, enabledSectionKeys(enabledModules))]
+      : [key];
+    if (!steps.some((s) => s.sectionKey === key)) {
       throw Object.assign(
         new Error(`No extraction steps planned for section "${key}".`),
         { code: 400 }
       );
     }
+    steps = steps
+      .filter((s) => order.includes(s.sectionKey))
+      .sort((a, b) => order.indexOf(a.sectionKey) - order.indexOf(b.sectionKey));
   }
 
   if (!enabledSectionKeys(enabledModules).some((k) => steps.some((s) => s.sectionKey === k))) {
@@ -99,7 +106,9 @@ export async function startExtractionRun({
       },
     });
 
-    for (const step of steps) {
+    // The chain runs steps by createdAt; one ms apart keeps the planned order.
+    const base = Date.now();
+    for (const [index, step] of steps.entries()) {
       await tx.extractionStep.create({
         data: {
           extractionRunId: created.id,
@@ -108,6 +117,7 @@ export async function startExtractionRun({
           sectionKey: step.sectionKey,
           partIndex: step.partIndex,
           status: "QUEUED",
+          createdAt: new Date(base + index),
         },
       });
     }

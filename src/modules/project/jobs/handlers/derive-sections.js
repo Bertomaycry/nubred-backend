@@ -1,6 +1,7 @@
 import { loadTenantContext } from "../../../../lib/tenant-context.js";
 import { runDeriveSections } from "../../extraction/derive-engine.js";
 import { runFailureSummary, userFacingStepError } from "../../extraction/failure-message.js";
+import { cascadeRootKey, sectionDependents } from "../../sections/dependents.js";
 
 export async function handleDeriveSections(job) {
   const extractionRunId = job.payload?.extractionRunId;
@@ -40,6 +41,8 @@ export async function handleDeriveSections(job) {
     },
   });
 
+  await clearRefreshedDependents(db, run, steps);
+
   const extracting = await db.sectionState.findMany({
     where: { projectId: run.projectId, status: "EXTRACTING" },
     select: { sectionKey: true },
@@ -57,6 +60,38 @@ export async function handleDeriveSections(job) {
       data: { status: stored > 0 ? "TO_REVIEW" : "NOT_STARTED" },
     });
   }
+}
+
+/**
+ * Cascade run: a dependent that re-extracted cleanly is no longer behind its
+ * upstream. project_overview has no steps; it was just re-derived.
+ */
+async function clearRefreshedDependents(db, run, steps) {
+  const rootKey = cascadeRootKey(run.scope);
+  if (!rootKey) return;
+  const rootFailed = steps.some(
+    (step) => step.sectionKey === rootKey && step.status === "FAILED"
+  );
+  if (rootFailed) return;
+
+  const refreshed = [];
+  for (const key of sectionDependents(rootKey)) {
+    const mine = steps.filter((step) => step.sectionKey === key);
+    if (key === "project_overview" && !mine.length) {
+      refreshed.push(key);
+      continue;
+    }
+    const ok =
+      mine.some((step) => step.status === "SUCCEEDED") &&
+      mine.every((step) => step.status === "SUCCEEDED" || step.status === "SKIPPED");
+    if (ok) refreshed.push(key);
+  }
+  if (!refreshed.length) return;
+
+  await db.sectionState.updateMany({
+    where: { projectId: run.projectId, sectionKey: { in: refreshed } },
+    data: { upstreamChangedAt: null },
+  });
 }
 
 export async function onDeriveSectionsDead(job, errorMessage) {

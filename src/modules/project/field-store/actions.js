@@ -35,27 +35,31 @@ export async function editField(
     },
   });
 
-  return db.fieldValue.update({
+  const data = {
+    value,
+    status: "FOUND",
+    review: "EDITED",
+    confidence: "CONFIRMED",
+    reviewedById: userId,
+    reviewedAt: new Date(),
+  };
+  return db.fieldValue.upsert({
     where: { recordId_fieldKey: { recordId, fieldKey } },
-    data: {
-      value,
-      status: "FOUND",
-      review: "EDITED",
-      confidence: "CONFIRMED",
-      reviewedById: userId,
-      reviewedAt: new Date(),
-    },
+    create: { recordId, fieldKey, ...data },
+    update: data,
   });
 }
 
 export async function gapField(db, { recordId, fieldKey, userId }) {
-  return db.fieldValue.update({
+  const data = {
+    review: "GAP",
+    reviewedById: userId,
+    reviewedAt: new Date(),
+  };
+  return db.fieldValue.upsert({
     where: { recordId_fieldKey: { recordId, fieldKey } },
-    data: {
-      review: "GAP",
-      reviewedById: userId,
-      reviewedAt: new Date(),
-    },
+    create: { recordId, fieldKey, value: null, status: "NOT_FOUND", ...data },
+    update: data,
   });
 }
 

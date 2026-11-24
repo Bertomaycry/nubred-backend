@@ -10,8 +10,13 @@ import { buildUpstreamContext } from "../../extraction/upstream-context.js";
 import { mergeExtractionIntoStore } from "../../extraction/merge.js";
 import { contractOnlyDecision } from "../../extraction/plan-run.js";
 import { advanceExtractionRun } from "../../extraction/chain.js";
-import { MODEL_UNAVAILABLE_MESSAGE, userFacingStepError } from "../../extraction/failure-message.js";
+import {
+  MODEL_UNAVAILABLE_MESSAGE,
+  UPSTREAM_FAILED_SKIP_REASON,
+  userFacingStepError,
+} from "../../extraction/failure-message.js";
 import { enabledSectionKeys } from "../../access/section-modules.js";
+import { cascadeRootKey } from "../../sections/dependents.js";
 import {
   ensureSectionState,
 } from "../../field-store/repository.js";
@@ -42,6 +47,20 @@ export async function handleExtractStep(job) {
     await db.extractionStep.update({
       where: { id: step.id },
       data: { status: "SKIPPED", skipReason: "code-only section" },
+    });
+    await bumpProgress(db, extractionRunId, job);
+    return;
+  }
+
+  const upstreamFailure = await cascadeUpstreamFailure(db, extractionRunId, step);
+  if (upstreamFailure) {
+    await db.extractionStep.update({
+      where: { id: step.id },
+      data: {
+        status: "SKIPPED",
+        skipReason: UPSTREAM_FAILED_SKIP_REASON,
+        error: upstreamFailure,
+      },
     });
     await bumpProgress(db, extractionRunId, job);
     return;
@@ -191,6 +210,26 @@ export async function handleExtractStep(job) {
   });
 
   await bumpProgress(db, extractionRunId, job);
+}
+
+/**
+ * In a cascade run, dependents do not run on data the requested section
+ * failed to produce.
+ * @returns {Promise<string | null>} user-facing reason, or null to run the step
+ */
+async function cascadeUpstreamFailure(db, extractionRunId, step) {
+  const run = await db.extractionRun.findUnique({
+    where: { id: extractionRunId },
+    select: { scope: true },
+  });
+  const rootKey = cascadeRootKey(run?.scope);
+  if (!rootKey || rootKey === step.sectionKey) return null;
+
+  const failed = await db.extractionStep.count({
+    where: { extractionRunId, sectionKey: rootKey, status: "FAILED" },
+  });
+  if (!failed) return null;
+  return `Skipped because the ${getSection(rootKey).label} extract failed. Nothing was changed in this section.`;
 }
 
 async function bumpProgress(db, extractionRunId, job) {

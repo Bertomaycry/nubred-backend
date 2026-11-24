@@ -44,6 +44,18 @@ describe("extraction failure messages", () => {
     expect(noticeForSection(steps, "contract", 0, "RUNNING")).toBeNull();
   });
 
+  test("a dependent skipped after its upstream failed shows the skip reason", () => {
+    const steps = [
+      { sectionKey: "contract", status: "FAILED", error: "503 high demand" },
+      {
+        sectionKey: "phase",
+        status: "SKIPPED",
+        error: "Skipped because the Contract extract failed. Nothing was changed in this section.",
+      },
+    ];
+    expect(noticeForSection(steps, "phase", 3, "PARTIAL")).toMatch(/Contract extract failed/);
+  });
+
   test("overview explains an unfinished run when it has no steps", () => {
     expect(noticeForSection([], "project_overview", 0, "PARTIAL")).toMatch(/did not complete/);
     expect(noticeForSection([], "project_overview", 0, "SUCCEEDED")).toBeNull();

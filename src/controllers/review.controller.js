@@ -10,6 +10,7 @@ function sendReviewError(res, error) {
   if (error.issues) body.issues = error.issues;
   if (error.blocking) body.blocking = error.blocking;
   if (error.rules) body.rules = error.rules;
+  if (Number.isInteger(error.index)) body.index = error.index;
   return res.status(code).json(body);
 }
 
@@ -38,7 +39,7 @@ export const patchField = asyncHandler(async (req, res) => {
     });
     res.status(200).json({
       success: true,
-      message: "Field updated.",
+      message: Array.isArray(req.body?.actions) ? "Fields updated." : "Field updated.",
       ...review,
     });
   } catch (error) {

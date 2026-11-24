@@ -8,6 +8,7 @@ import { listSectionRecords } from "../modules/project/field-store/repository.js
 import { badgeForField } from "../modules/project/field-store/status.js";
 import { startExtractionRun } from "../modules/project/extraction/start.js";
 import { noticeForSection } from "../modules/project/extraction/failure-message.js";
+import { cascadeScope, sectionDependents } from "../modules/project/sections/dependents.js";
 
 export const listSections = asyncHandler(async (req, res) => {
   const enabledModules = await loadEnabledModules(req.tenant.id);
@@ -53,9 +54,14 @@ export const listSections = asyncHandler(async (req, res) => {
     );
   }
 
+  const enabledKeys = sections.map((s) => s.key);
+  const dependents = Object.fromEntries(
+    sections.map((s) => [s.key, sectionDependents(s.key, enabledKeys)])
+  );
+
   res.status(200).json({
     success: true,
-    sections: serializeSectionList(sections, states, countBySection, messages),
+    sections: serializeSectionList(sections, states, countBySection, messages, dependents),
   });
 });
 
@@ -72,14 +78,16 @@ export const getSectionDefinition = asyncHandler(async (req, res) => {
 
 export const reextractSection = asyncHandler(async (req, res) => {
   const sectionKey = req.params.sectionKey;
+  const cascade = req.body?.cascade === true;
   try {
     const run = await startExtractionRun({
       db: req.db,
       projectId: req.project.id,
       tenantId: req.tenant.id,
       enabledModules: await loadEnabledModules(req.tenant.id),
-      scope: `section:${sectionKey}`,
+      scope: cascade ? cascadeScope(sectionKey) : `section:${sectionKey}`,
       sectionKey,
+      cascade,
     });
     res.status(202).json({
       success: true,

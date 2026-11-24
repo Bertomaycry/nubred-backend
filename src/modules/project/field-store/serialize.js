@@ -2,7 +2,13 @@ import { walkFields } from "../sections/field-tree/traverse.js";
 import { badgeForField } from "./status.js";
 import { computeChipCounts } from "./chip-counts.js";
 
-export function serializeSectionList(enabledSections, states, countBySection, messages = {}) {
+export function serializeSectionList(
+  enabledSections,
+  states,
+  countBySection,
+  messages = {},
+  dependents = {}
+) {
   return enabledSections.map((section) => {
     const state = states.find((s) => s.sectionKey === section.key);
     return {
@@ -15,6 +21,7 @@ export function serializeSectionList(enabledSections, states, countBySection, me
       confirmedAt: state?.confirmedAt,
       chipCounts: countBySection[section.key]?.chipCounts ?? null,
       extractionMessage: messages[section.key] ?? null,
+      dependents: dependents[section.key] ?? [],
     };
   });
 }
