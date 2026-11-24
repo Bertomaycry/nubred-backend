@@ -22,9 +22,7 @@ const DEFAULT_EXPIRES = 900;
 /** Always applied, even when NUBRED_STORAGE_CORS_ORIGINS replaces the rest. */
 const STORAGE_CORS_REQUIRED = [
   "https://gov.nubred.com",
-  "https://*.gov.nubred.com",
   "https://gov.preview.nubred.com",
-  "https://*.gov.preview.nubred.com",
 ];
 
 const STORAGE_CORS_DEFAULTS = [
@@ -38,8 +36,8 @@ const STORAGE_CORS_DEFAULTS = [
 const CLIENT_WORKSPACE_HOSTS = ["gov.nubred.com", "gov.preview.nubred.com"];
 
 /**
- * Exact workspace origins for one client bucket. MinIO matches these; it often
- * ignores the `https://*.host` wildcards above.
+ * Exact workspace origins for one client bucket. MinIO rejects `https://*.host`
+ * and then stores no CORS rule at all.
  * @param {string} bucket `nubred-{slug}`
  * @returns {string[]}
  */
@@ -53,8 +51,9 @@ export function clientExactOrigins(bucket) {
 
 /**
  * Browser origins allowed to PUT/GET a client bucket.
- * Env origins are added. The prod and staging client wildcards stay even when
- * NUBRED_STORAGE_CORS_ORIGINS is set, so a staging list cannot drop them.
+ * Exact origins only. A `*` origin is dropped so MinIO accepts the rule.
+ * Env origins are added. The prod and staging app hosts stay even when
+ * NUBRED_STORAGE_CORS_ORIGINS is set.
  * @param {string} [envValue]
  * @param {string} [hostSuffix]
  * @param {string} [bucket]
@@ -72,18 +71,15 @@ export function storageCorsOrigins(
   const suffix = String(hostSuffix ?? "")
     .replace(/^\./, "")
     .trim();
-  const configured = suffix
-    ? [`https://${suffix}`, `https://*.${suffix}`]
-    : [];
+  const configured = suffix ? [`https://${suffix}`] : [];
 
   const base = fromEnv.length > 0 ? fromEnv : STORAGE_CORS_DEFAULTS;
   return [
-    ...new Set([
-      ...base,
-      ...configured,
-      ...STORAGE_CORS_REQUIRED,
-      ...clientExactOrigins(bucket),
-    ]),
+    ...new Set(
+      [...base, ...configured, ...STORAGE_CORS_REQUIRED, ...clientExactOrigins(bucket)].filter(
+        (origin) => !origin.includes("*")
+      )
+    ),
   ];
 }
 
@@ -197,7 +193,7 @@ export class S3StorageProvider extends StorageProvider {
       // Not supported by this gateway; the bucket has no public policy anyway.
     }
 
-    await this._applyCors(bucket);
+    await this._applyCors(bucket, { required: true });
   }
 
   async deleteBucketIfEmpty(bucket) {
@@ -209,7 +205,7 @@ export class S3StorageProvider extends StorageProvider {
     return true;
   }
 
-  async _applyCors(bucket) {
+  async _applyCors(bucket, { required = false } = {}) {
     const allowedOrigins = storageCorsOrigins(
       process.env.NUBRED_STORAGE_CORS_ORIGINS,
       process.env.NUBRED_TENANT_HOST_SUFFIX,
@@ -234,8 +230,11 @@ export class S3StorageProvider extends StorageProvider {
         })
       );
     } catch (error) {
-      // Native S3 always supports this; some gateways may not. Uploads still work
-      // if the bucket already has CORS configured in the console.
+      if (required) {
+        throw new Error(`Could not set CORS on bucket "${bucket}": ${error.message}`);
+      }
+      // Existing buckets are refreshed best-effort. A new client bucket must
+      // not be left without a CORS rule.
       console.warn(`⚠️  Could not set CORS on bucket "${bucket}": ${error.message}`);
     }
   }
