@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ensureStorage } from "../modules/project/storage/provider.js";
 import { buildDocumentKey, keyBelongsToProject } from "../modules/project/storage/keys.js";
 import {
-  DOCUMENT_TYPES,
+  normalizeDocumentKind,
   validateUploadFile,
 } from "../modules/project/storage/allowed.js";
 import { isSectionKey } from "../modules/project/sections/registry.js";
@@ -33,8 +33,7 @@ function serializeDocument(doc, extra = {}) {
 }
 
 function parseDocumentType(value) {
-  if (!value) return "OTHER";
-  return DOCUMENT_TYPES.includes(value) ? value : "OTHER";
+  return normalizeDocumentKind(value) ?? "OTHER";
 }
 
 // @desc    Issue presigned PUT URLs and create PENDING_UPLOAD rows

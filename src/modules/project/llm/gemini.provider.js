@@ -59,25 +59,28 @@ export function parseGeminiRetryAfterMs(message) {
  */
 export function normalizeGeminiError(err) {
   const message = err?.message || String(err);
+  const isUnavailable =
+    message.includes("503") ||
+    message.includes("Service Unavailable") ||
+    message.includes("high demand");
   const isQuota =
     message.includes("429") ||
     message.includes("Too Many Requests") ||
     message.includes("quota") ||
     message.includes("Quota exceeded");
 
-  if (!isQuota) {
+  if (!isUnavailable && !isQuota) {
     return err instanceof Error ? err : new Error(message);
   }
 
   releaseRateLimitSlot();
 
-  const retryAfterMs = parseGeminiRetryAfterMs(message) ?? 25_000;
-  return Object.assign(
-    new Error(
-      `Gemini quota exceeded. Retry after ${Math.ceil(retryAfterMs / 1000)}s.`
-    ),
-    { code: "RATE_LIMIT", retryAfterMs }
-  );
+  const retryAfterMs = parseGeminiRetryAfterMs(message) ?? (isUnavailable ? 30_000 : 25_000);
+  const summary = isUnavailable
+    ? "The extraction model is temporarily unavailable. Nothing was saved for this section. Try again in a few minutes."
+    : "The extraction model quota was reached. Nothing was saved for this section. Wait a minute and try again.";
+
+  return Object.assign(new Error(summary), { code: "RATE_LIMIT", retryAfterMs });
 }
 
 async function acquireRateSlot() {
@@ -119,15 +122,16 @@ export class GeminiProvider extends LLMProvider {
     return this._sdk;
   }
 
-  async extract({ systemPrompt, promptHash, userContent, schema }) {
+  async extract({ systemPrompt, promptHash, userContent, schema, modelId }) {
     await acquireRateSlot();
 
     try {
       const sdk = await this._getClient();
       const jsonSchema = schemaToGeminiJsonSchema(schema);
+      const activeModel = (modelId ?? this._modelId).trim() || this._modelId;
 
       const model = sdk.getGenerativeModel({
-        model: this._modelId,
+        model: activeModel,
         systemInstruction: systemPrompt,
         generationConfig: {
           responseMimeType: "application/json",
@@ -160,7 +164,7 @@ export class GeminiProvider extends LLMProvider {
           cachedInputTokens: usage.cachedContentTokenCount ?? 0,
         },
         promptHash,
-        modelId: this._modelId,
+        modelId: activeModel,
       };
     } catch (err) {
       if (!err.message?.startsWith("Gemini returned non-JSON")) {

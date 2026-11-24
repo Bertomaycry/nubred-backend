@@ -32,19 +32,51 @@ const EXTENSION_TO_MIME = {
 };
 
 export const DOCUMENT_TYPES = [
-  "SIGNED_CONTRACT",
-  "DRAFT_CONTRACT",
-  "CONTRACT_ANNEX",
-  "IP_CERTIFICATE",
-  "EMAIL",
-  "PROTOCOL_DOCUMENT",
-  "VCU_EVALUATION",
-  "PLANTING_PLAN",
-  "MEETING_NOTES",
-  "QUALITY_SPECIFICATION",
-  "SOIL_ANALYSIS",
+  "CONTRACT",
+  "ANNEX_ADDENDUM",
+  "PROTOCOL",
+  "OFFICIAL_RECORD",
+  "CORRESPONDENCE",
   "OTHER",
 ];
+
+const LEGACY_DOCUMENT_TYPES = {
+  SIGNED_CONTRACT: "CONTRACT",
+  DRAFT_CONTRACT: "CONTRACT",
+  CONTRACT_ANNEX: "ANNEX_ADDENDUM",
+  ADDENDUM: "ANNEX_ADDENDUM",
+  ANNEX: "ANNEX_ADDENDUM",
+  PROTOCOL_DOCUMENT: "PROTOCOL",
+  IP_CERTIFICATE: "OFFICIAL_RECORD",
+  EMAIL: "CORRESPONDENCE",
+  MEETING_NOTES: "CORRESPONDENCE",
+  VCU_EVALUATION: "OTHER",
+  PLANTING_PLAN: "OTHER",
+  QUALITY_SPECIFICATION: "OTHER",
+  SOIL_ANALYSIS: "OTHER",
+};
+
+/**
+ * Map an upload hint or a free-text triage label onto one of DOCUMENT_TYPES.
+ * Unknown text returns null. Empty returns null.
+ * @param {unknown} value
+ * @returns {(typeof DOCUMENT_TYPES)[number] | null}
+ */
+export function normalizeDocumentKind(value) {
+  const raw = String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+  if (!raw) return null;
+  if (DOCUMENT_TYPES.includes(raw)) return raw;
+  if (LEGACY_DOCUMENT_TYPES[raw]) return LEGACY_DOCUMENT_TYPES[raw];
+  if (/LICEN[CS]E|AGREEMENT|TERM_SHEET/.test(raw)) return "CONTRACT";
+  if (/ANNEX|ADDEND/.test(raw)) return "ANNEX_ADDENDUM";
+  if (raw.includes("PROTOCOL")) return "PROTOCOL";
+  if (/CERTIFICATE|PERMIT|REGISTER/.test(raw)) return "OFFICIAL_RECORD";
+  if (/EMAIL|MEETING_NOTE|CORRESPOND/.test(raw)) return "CORRESPONDENCE";
+  return null;
+}
 
 /**
  * Infer a canonical MIME type from the declared type or filename extension.

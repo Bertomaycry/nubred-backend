@@ -18,6 +18,49 @@ import { StorageProvider } from "./provider.js";
 const DEFAULT_REGION = "us-east-1";
 const DEFAULT_EXPIRES = 900;
 
+/** Always applied, even when NUBRED_STORAGE_CORS_ORIGINS replaces the rest. */
+const STORAGE_CORS_REQUIRED = [
+  "https://gov.nubred.com",
+  "https://*.gov.nubred.com",
+  "https://gov.preview.nubred.com",
+  "https://*.gov.preview.nubred.com",
+];
+
+const STORAGE_CORS_DEFAULTS = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://preview.nubred.com",
+  "https://governance.nubred.com",
+  ...STORAGE_CORS_REQUIRED,
+];
+
+/**
+ * Browser origins allowed to PUT/GET a client bucket.
+ * Env origins are added. The prod and staging client wildcards stay even when
+ * NUBRED_STORAGE_CORS_ORIGINS is set, so a staging list cannot drop them.
+ * @param {string} [envValue]
+ * @param {string} [hostSuffix]
+ */
+export function storageCorsOrigins(
+  envValue = process.env.NUBRED_STORAGE_CORS_ORIGINS,
+  hostSuffix = process.env.NUBRED_TENANT_HOST_SUFFIX
+) {
+  const fromEnv = String(envValue ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const suffix = String(hostSuffix ?? "")
+    .replace(/^\./, "")
+    .trim();
+  const configured = suffix
+    ? [`https://${suffix}`, `https://*.${suffix}`]
+    : [];
+
+  const base = fromEnv.length > 0 ? fromEnv : STORAGE_CORS_DEFAULTS;
+  return [...new Set([...base, ...configured, ...STORAGE_CORS_REQUIRED])];
+}
+
 function requiredEnv(name) {
   const value = process.env[name]?.trim();
   if (!value) {
@@ -137,22 +180,7 @@ export class S3StorageProvider extends StorageProvider {
   }
 
   async _applyCors(bucket) {
-    const origins = (process.env.NUBRED_STORAGE_CORS_ORIGINS || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const allowedOrigins =
-      origins.length > 0
-        ? origins
-        : [
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "https://preview.nubred.com",
-            "https://governance.nubred.com",
-            `https://${process.env.NUBRED_TENANT_HOST_SUFFIX || "gov.nubred.com"}`,
-            `https://*.${process.env.NUBRED_TENANT_HOST_SUFFIX || "gov.nubred.com"}`,
-          ];
+    const allowedOrigins = storageCorsOrigins();
 
     try {
       await this._client.send(

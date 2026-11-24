@@ -1,62 +1,59 @@
 import { evaluateSectionRules } from "./evaluate-rules.js";
+import { requireSectionKey, loadSectionEvidence } from "./load.js";
 import {
-  getLatestSectionRow,
-  requireSectionKey,
-  serializeConfirmation,
-  serializeEvidence,
-  serializeOverride,
-} from "./load.js";
+  ensureSectionState,
+  listSectionRecords,
+} from "../field-store/repository.js";
+import { serializeSectionPayload } from "../field-store/serialize.js";
+import { computeChipCounts } from "../field-store/chip-counts.js";
+import { badgeForField } from "../field-store/status.js";
+import { noticeForSection } from "../extraction/failure-message.js";
 
 export async function getSectionReview(db, projectId, sectionKey) {
   const section = requireSectionKey(sectionKey);
-  const row = await getLatestSectionRow(db, projectId, sectionKey);
+  const state = await ensureSectionState(db, projectId, section.key);
+  const records = await listSectionRecords(db, projectId, section.key);
+  const evidence = await loadSectionEvidence(db, projectId, section.key);
 
-  if (!row) {
-    throw Object.assign(
-      new Error(
-        `No extraction found for section "${sectionKey}". Start an extraction first.`
-      ),
-      { code: 404 }
-    );
+  const body = serializeSectionPayload(section, state, records, evidence);
+
+  const flatFields = [];
+  for (const record of records) {
+    for (const fv of record.fieldValues) {
+      const open = fv.candidates?.filter((c) => c.state === "OPEN")?.length ?? 0;
+      flatFields.push({
+        fieldKey: fv.fieldKey,
+        badge: badgeForField(fv, open),
+        required: false,
+      });
+    }
   }
-
-  const [confirmation, overrides] = await Promise.all([
-    db.sectionConfirmation.findUnique({
-      where: { projectId_sectionKey: { projectId, sectionKey } },
-    }),
-    db.fieldOverride.findMany({
-      where: { projectId, sectionKey },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    }),
-  ]);
+  const { chipCounts, requiredMissing } = computeChipCounts(section, flatFields);
 
   const evaluation = evaluateSectionRules(section.rules, {
-    extraction: row.payload,
-    fieldMeta: row.fieldMeta,
-    reviewState: row.reviewState,
+    extraction: body,
+    chipCounts,
+    requiredMissing,
+    reviewState: state.reviewState ?? {},
+  });
+
+  const latest = await db.extractionRun.findFirst({
+    where: { projectId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      steps: { select: { sectionKey: true, status: true, error: true } },
+    },
   });
 
   return {
-    sectionKey: section.key,
-    label: section.label,
-    kind: section.kind,
-    order: section.order,
-    reviewTabs: section.rules?.reviewTabs ?? [],
-    extraction: {
-      id: row.id,
-      extractionRunId: row.extractionRunId,
-      status: row.status,
-      error: row.error,
-      payload: row.payload,
-      fieldMeta: row.fieldMeta,
-      reviewState: row.reviewState ?? {},
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      evidence: (row.evidenceItems ?? []).map(serializeEvidence),
-    },
+    ...body,
     rules: evaluation,
-    confirmation: serializeConfirmation(confirmation),
-    overrides: overrides.map(serializeOverride),
+    canConfirm: evaluation.canConfirm,
+    extractionMessage: noticeForSection(
+      latest?.steps ?? [],
+      section.key,
+      chipCounts.all,
+      latest?.status
+    ),
   };
 }

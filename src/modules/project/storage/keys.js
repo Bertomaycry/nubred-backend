@@ -48,3 +48,27 @@ export function keyBelongsToProject(storageKey, { projectId }) {
   const prefix = `projects/${projectId}/documents/`;
   return typeof storageKey === "string" && storageKey.startsWith(prefix);
 }
+
+/**
+ * @param {{ projectId: string, sectionKey: string, filterId: string, filename: string }} params
+ */
+export function buildProjectSectionFilterKey({
+  projectId,
+  sectionKey,
+  filterId,
+  filename,
+}) {
+  return [
+    "projects",
+    projectId,
+    "filters",
+    sectionKey,
+    filterId,
+    sanitizeFilename(filename),
+  ].join("/");
+}
+
+export function keyBelongsToProjectFilter(storageKey, { projectId, sectionKey }) {
+  const prefix = `projects/${projectId}/filters/${sectionKey}/`;
+  return typeof storageKey === "string" && storageKey.startsWith(prefix);
+}

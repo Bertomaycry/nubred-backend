@@ -41,7 +41,19 @@ function stripUnsupported(node) {
   const out = {};
   for (const [key, value] of Object.entries(rest)) {
     if (key === "const" || key === "id" || key === "$anchor") continue;
+    if (key === "exclusiveMinimum" || key === "exclusiveMaximum") continue;
     out[key] = stripUnsupported(value);
+  }
+  const step = rest.type === "integer" ? 1 : 0;
+  if (typeof rest.exclusiveMinimum === "number") {
+    out.minimum = rest.exclusiveMinimum + step;
+  } else if (rest.exclusiveMinimum === true && typeof out.minimum === "number") {
+    out.minimum += step;
+  }
+  if (typeof rest.exclusiveMaximum === "number") {
+    out.maximum = rest.exclusiveMaximum - step;
+  } else if (rest.exclusiveMaximum === true && typeof out.maximum === "number") {
+    out.maximum -= step;
   }
   return out;
 }

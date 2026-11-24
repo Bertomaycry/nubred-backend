@@ -1,25 +1,12 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { phaseExtractionSchema } from "./phase.schema.js";
+import { makeSectionDefinition } from "../make-section.js";
+import { phaseFieldTree } from "./phase.fields.js";
 import { phaseRules } from "./phase.rules.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export const phaseSection = {
+export const phaseSection = makeSectionDefinition({
   key: "phase",
   label: "Phases",
-  order: 3,
+  order: 10,
   kind: "extractor",
-  enabled: true,
-  schema: phaseExtractionSchema,
+  fieldTree: phaseFieldTree,
   rules: phaseRules,
-  promptDir: join(__dirname, "prompts"),
-  relevantDocTypes: [
-    "SIGNED_CONTRACT",
-    "DRAFT_CONTRACT",
-    "CONTRACT_ANNEX",
-    "PROTOCOL_DOCUMENT",
-    "MEETING_NOTES",
-    "EMAIL",
-  ],
-};
+});

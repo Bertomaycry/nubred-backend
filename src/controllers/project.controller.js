@@ -119,18 +119,15 @@ export const getProject = asyncHandler(async (req, res) => {
       where: { projectId: req.project.id },
       _count: { _all: true },
     }),
-    req.db.phase.findMany({
-      where: { projectId: req.project.id },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        category: true,
-        location: true,
-        countries: true,
-        sortOrder: true,
+    req.db.sectionRecord.findMany({
+      where: {
+        projectId: req.project.id,
+        sectionKey: "phase",
+        groupPath: { not: "" },
+        deletedAt: null,
       },
+      orderBy: { sortOrder: "asc" },
+      include: { fieldValues: true },
     }),
   ]);
 
@@ -145,9 +142,23 @@ export const getProject = asyncHandler(async (req, res) => {
     documentsByStatus: Object.fromEntries(
       documentCounts.map((row) => [row.status, row._count._all])
     ),
-    phases: phases.map((phase) => ({
-      ...phase,
-      countries: Array.isArray(phase.countries) ? phase.countries : [],
-    })),
+    phases: phases.map((record) => {
+      const byKey = Object.fromEntries(
+        record.fieldValues.map((f) => [f.fieldKey, f.value])
+      );
+      const countries =
+        byKey.countries ??
+        byKey.country ??
+        (byKey.location && typeof byKey.location === "object"
+          ? byKey.location.countries
+          : []);
+      return {
+        id: record.id,
+        name: byKey.name ?? byKey.phase_name ?? "Phase",
+        sortOrder: record.sortOrder,
+        countries: Array.isArray(countries) ? countries : countries ? [countries] : [],
+        location: byKey.location ?? null,
+      };
+    }),
   });
 });

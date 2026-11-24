@@ -1,5 +1,7 @@
 # Project Modules — Structure Reference
 
+**v2 (field store):** Eleven sections (`sections/*.fields.js` + `field-tree/`). Extraction is per-document × section via `TRIAGE_DOCUMENT` → chained `EXTRACT_STEP` → `DERIVE_SECTIONS`. Data lives in tenant `SectionRecord` / `FieldValue` / `FieldCandidate` (see `prisma/tenant/schema.prisma`). Prompts: `prompt/core-rules.md` + platform master filters + `ProjectSectionFilter`. API contract: `docs/api/review.md`, `docs/api/extractions.md`.
+
 This document explains the role of every folder and file inside `src/modules/project/` and `docs/extraction-guides/`. Keep it updated when adding new sections or infrastructure.
 
 ---

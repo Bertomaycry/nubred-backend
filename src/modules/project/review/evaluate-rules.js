@@ -8,10 +8,21 @@ export function evaluateSectionRules(rules, ctx) {
   const extraction = ctx.extraction ?? null;
   const fieldConfidences = flattenConfidences(ctx.fieldMeta);
   const reviewState = ctx.reviewState ?? {};
-  const evalCtx = { extraction, fieldConfidences, fieldMeta: ctx.fieldMeta, reviewState };
+  const evalCtx = {
+    extraction,
+    fieldConfidences,
+    fieldMeta: ctx.fieldMeta,
+    reviewState,
+    chipCounts: ctx.chipCounts ?? {},
+    requiredMissing: ctx.requiredMissing ?? 0,
+  };
 
   const blocking = [];
   for (const rule of rules?.blocking ?? []) {
+    if (typeof rule.when === "function" && rule.when(evalCtx)) {
+      blocking.push({ id: rule.id, message: rule.message, type: "blocking" });
+      continue;
+    }
     if (ruleApplies(rule, evalCtx)) {
       blocking.push({ id: rule.id, message: rule.message, type: "blocking" });
     }

@@ -1,0 +1,29 @@
+-- Six document kinds. Old upload values are folded in. signed stays its own column.
+ALTER TABLE "documents" ALTER COLUMN "documentType" DROP DEFAULT;
+ALTER TABLE "documents" ALTER COLUMN "documentType" TYPE TEXT;
+
+UPDATE "documents" SET "documentType" = CASE "documentType"
+  WHEN 'SIGNED_CONTRACT' THEN 'CONTRACT'
+  WHEN 'DRAFT_CONTRACT' THEN 'CONTRACT'
+  WHEN 'CONTRACT_ANNEX' THEN 'ANNEX_ADDENDUM'
+  WHEN 'PROTOCOL_DOCUMENT' THEN 'PROTOCOL'
+  WHEN 'IP_CERTIFICATE' THEN 'OFFICIAL_RECORD'
+  WHEN 'EMAIL' THEN 'CORRESPONDENCE'
+  WHEN 'MEETING_NOTES' THEN 'CORRESPONDENCE'
+  ELSE 'OTHER'
+END;
+
+DROP TYPE "DocumentType";
+CREATE TYPE "DocumentType" AS ENUM (
+  'CONTRACT',
+  'ANNEX_ADDENDUM',
+  'PROTOCOL',
+  'OFFICIAL_RECORD',
+  'CORRESPONDENCE',
+  'OTHER'
+);
+
+ALTER TABLE "documents"
+  ALTER COLUMN "documentType" TYPE "DocumentType"
+  USING "documentType"::"DocumentType";
+ALTER TABLE "documents" ALTER COLUMN "documentType" SET DEFAULT 'OTHER';

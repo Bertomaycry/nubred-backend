@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { loadTenantContext } from "../../../../lib/tenant-context.js";
 import { ensureStorage } from "../../storage/provider.js";
 import { extractDocumentText } from "../../ingestion/extract-text.js";
+import { enqueueTriageDocument } from "../../extraction/chain.js";
 
 /**
  * EXTRACT_TEXT — download the blob, extract per-page text, mark Document READY.
@@ -57,6 +58,12 @@ export async function handleExtractText(job) {
         checksumSha256: document.checksumSha256 || digest,
       },
     });
+  });
+
+  await enqueueTriageDocument({
+    tenantId: job.tenantId,
+    projectId: document.projectId,
+    documentId,
   });
 }
 

@@ -29,8 +29,14 @@ const API_SECTION_TO_DOC_A = {
   genotype: "genotype",
   phase: "phases",
   protocol: "phases",
-  // Out of MVP tab bar: Variety Manager only.
+  ip_right: "ip_rights",
+  supply_chain: "supply_chain",
+  todo: "todo",
+  timeline: "chronology",
   chronology: "chronology",
+  quarantine: "overview",
+  observation: "phases",
+  project_overview: "overview",
 };
 
 // Doc A "Section visibility by role" table.

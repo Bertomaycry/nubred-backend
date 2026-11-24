@@ -82,19 +82,15 @@ DocumentStatus:
 
   Note: schema also has UPLOADED; current flow skips it (PENDING_UPLOAD → PROCESSING → READY | FAILED).
 
-DocumentType (optional hint for later AI; does not block upload):
-  "SIGNED_CONTRACT"
-  "DRAFT_CONTRACT"
-  "CONTRACT_ANNEX"
-  "IP_CERTIFICATE"
-  "EMAIL"
-  "PROTOCOL_DOCUMENT"
-  "VCU_EVALUATION"
-  "PLANTING_PLAN"
-  "MEETING_NOTES"
-  "QUALITY_SPECIFICATION"
-  "SOIL_ANALYSIS"
-  "OTHER"              // default if omitted or unrecognised
+DocumentType (optional hint for later AI; does not block upload). Six kinds. `signed` is a separate flag set by triage, not part of this value:
+  "CONTRACT"           // agreements and licences, signed or draft
+  "ANNEX_ADDENDUM"
+  "PROTOCOL"
+  "OFFICIAL_RECORD"    // certificates, permits, register extracts
+  "CORRESPONDENCE"     // email and meeting notes
+  "OTHER"              // plans, reports, analyses, unknown; default if omitted or unrecognised
+
+  Old names still accepted on upload and mapped: SIGNED_CONTRACT and DRAFT_CONTRACT → CONTRACT, CONTRACT_ANNEX → ANNEX_ADDENDUM, PROTOCOL_DOCUMENT → PROTOCOL, IP_CERTIFICATE → OFFICIAL_RECORD, EMAIL and MEETING_NOTES → CORRESPONDENCE, VCU_EVALUATION, PLANTING_PLAN, QUALITY_SPECIFICATION, SOIL_ANALYSIS → OTHER. Send the six.
 
 Allowed file types (by MIME or extension):
   PDF, DOCX, XLSX, XLS, TXT, CSV, EML

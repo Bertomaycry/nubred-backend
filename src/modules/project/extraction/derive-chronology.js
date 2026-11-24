@@ -122,14 +122,14 @@ function fromProtocol(payload, events) {
 
 function fromDocuments(documents, events) {
   for (const doc of documents ?? []) {
-    if (doc.documentType !== "EMAIL" && doc.documentType !== "MEETING_NOTES") {
+    if (doc.documentType !== "CORRESPONDENCE" && doc.documentType !== "EMAIL" && doc.documentType !== "MEETING_NOTES") {
       continue;
     }
     const date = doc.uploadedAt
       ? new Date(doc.uploadedAt).toISOString().slice(0, 10)
       : null;
     addEvent(events, {
-      event_type: doc.documentType === "EMAIL" ? "EMAIL_EXCHANGE" : "MEETING_DECISION",
+      event_type: doc.documentType === "MEETING_NOTES" ? "MEETING_DECISION" : "EMAIL_EXCHANGE",
       description: `Source document "${doc.originalFilename}" (${doc.documentType}).`,
       date,
       date_precision: "ESTIMATED",

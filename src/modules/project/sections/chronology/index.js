@@ -36,12 +36,10 @@ export const chronologySection = {
    * This list is used for the chat's document retrieval scope.
    */
   relevantDocTypes: [
-    "SIGNED_CONTRACT",
-    "DRAFT_CONTRACT",
-    "CONTRACT_ANNEX",
-    "IP_CERTIFICATE",
-    "MEETING_NOTES",
-    "EMAIL",
-    "PROTOCOL_DOCUMENT",
+    "CONTRACT",
+    "ANNEX_ADDENDUM",
+    "PROTOCOL",
+    "OFFICIAL_RECORD",
+    "CORRESPONDENCE",
   ],
 };
