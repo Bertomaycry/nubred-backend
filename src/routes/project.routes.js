@@ -42,6 +42,18 @@ import {
   patchSectionReviewState,
   confirmSectionHandler,
 } from "../controllers/review.controller.js";
+import {
+  getSectionDefinition,
+  listSections,
+  reextractSection,
+} from "../controllers/sections.controller.js";
+import {
+  completeSectionFilterUpload,
+  deleteSectionFilter,
+  getSectionFilter,
+  initSectionFilterUpload,
+  putSectionFilter,
+} from "../controllers/section-filter.controller.js";
 import { postSectionChat } from "../controllers/section-chat.controller.js";
 
 const router = express.Router();
@@ -103,7 +115,43 @@ router.get(
 );
 router.delete("/:projectId/documents/:documentId", ...withProjectEdit, deleteDocument);
 
+router.get("/:projectId/sections", ...withProject, listSections);
+router.get(
+  "/:projectId/sections/:sectionKey/definition",
+  ...withSection,
+  getSectionDefinition
+);
 router.get("/:projectId/sections/:sectionKey", ...withSection, getSection);
+router.get(
+  "/:projectId/sections/:sectionKey/filter",
+  ...withSectionEdit,
+  getSectionFilter
+);
+router.put(
+  "/:projectId/sections/:sectionKey/filter",
+  ...withSectionEdit,
+  putSectionFilter
+);
+router.post(
+  "/:projectId/sections/:sectionKey/filter/init-upload",
+  ...withSectionEdit,
+  initSectionFilterUpload
+);
+router.post(
+  "/:projectId/sections/:sectionKey/filter/:filterId/complete",
+  ...withSectionEdit,
+  completeSectionFilterUpload
+);
+router.delete(
+  "/:projectId/sections/:sectionKey/filter",
+  ...withSectionEdit,
+  deleteSectionFilter
+);
+router.post(
+  "/:projectId/sections/:sectionKey/extract",
+  ...withSectionEdit,
+  reextractSection
+);
 router.patch(
   "/:projectId/sections/:sectionKey/fields",
   ...withSectionEdit,

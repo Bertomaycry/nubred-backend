@@ -1,109 +1,79 @@
-import { TenantPrisma as Prisma } from "../../../lib/tenant-prisma.js";
 import {
-  assertWritableFieldPath,
-  clonePayload,
-  getAtPath,
-  setAtPath,
-} from "./path.js";
-import { requireSectionKey, requireSucceededDraft } from "./load.js";
+  acceptField,
+  chooseCandidate,
+  editField,
+  gapField,
+} from "../field-store/actions.js";
+import { requireSectionKey } from "./load.js";
+import { getSectionReview } from "./get-section.js";
 
-function formatZodPath(path) {
-  return path.reduce((acc, part) => {
-    if (typeof part === "number") return `${acc}[${part}]`;
-    return acc ? `${acc}.${part}` : String(part);
-  }, "");
-}
+const ACTIONS = new Set(["accept", "edit", "gap", "choose", "undo"]);
 
-function isEmptyValue(value) {
-  return value === null || value === undefined;
-}
+export async function applyFieldPatch(db, projectId, sectionKey, body, userId) {
+  const action = body?.action;
+  if (!ACTIONS.has(action)) {
+    throw Object.assign(new Error(`Unknown field action "${action}".`), {
+      code: 400,
+    });
+  }
+  requireSectionKey(sectionKey);
 
-function toJsonValue(value) {
-  if (value === undefined || value === null) return Prisma.JsonNull;
-  return value;
-}
+  if (action === "choose") {
+    if (!body?.candidateId) {
+      throw Object.assign(new Error("candidateId is required for choose."), {
+        code: 400,
+      });
+    }
+    await chooseCandidate(db, { candidateId: body.candidateId, userId });
+    return getSectionReview(db, projectId, sectionKey);
+  }
 
-/**
- * Apply a VM edit to the latest SUCCEEDED draft. Writes FieldOverride (VM_MANUAL)
- * and marks fieldMeta.origin so the UI can show AI vs edited.
- *
- */
-export async function patchSectionField({
-  db,
-  projectId,
-  sectionKey,
-  fieldPath,
-  value,
-  reason,
-  userId,
-  source = "VM_MANUAL",
-}) {
-  const section = requireSectionKey(sectionKey);
-  const path = assertWritableFieldPath(fieldPath);
-  const row = await requireSucceededDraft(db, projectId, sectionKey);
-
-  if (value === undefined) {
-    throw Object.assign(new Error("value is required (use null to clear a field)."), {
+  const recordId = body?.recordId;
+  const fieldKey = body?.fieldKey;
+  if (!recordId || !fieldKey) {
+    throw Object.assign(new Error("recordId and fieldKey are required."), {
       code: 400,
     });
   }
 
-  const nextPayload = clonePayload(row.payload);
-  const previousValue = getAtPath(nextPayload, path);
-  setAtPath(nextPayload, path, value);
-
-  const parsed = section.schema.safeParse(nextPayload);
-  if (!parsed.success) {
-    throw Object.assign(
-      new Error("Updated value failed section schema validation."),
-      {
-        code: 400,
-        issues: parsed.error.issues.map((issue) => ({
-          path: formatZodPath(issue.path),
-          message: issue.message,
-        })),
-      }
-    );
-  }
-
-  const fieldMeta = {
-    ...(row.fieldMeta && typeof row.fieldMeta === "object" ? row.fieldMeta : {}),
-  };
-  const existing = fieldMeta[path] && typeof fieldMeta[path] === "object"
-    ? fieldMeta[path]
-    : { sources: [] };
-
-  fieldMeta[path] = {
-    ...existing,
-    sources: Array.isArray(existing.sources) ? existing.sources : [],
-    confidence: isEmptyValue(value) ? "MISSING" : "PROVISIONAL",
-    origin: source === "CHATBOT" ? "CHATBOT" : "VM_MANUAL",
-  };
-
-  const [updated, override] = await db.$transaction([
-    db.sectionExtraction.update({
-      where: { id: row.id },
-      data: {
-        payload: parsed.data,
-        fieldMeta,
-      },
-      include: {
-        evidenceItems: { orderBy: { fieldPath: "asc" } },
-      },
-    }),
-    db.fieldOverride.create({
-      data: {
+  switch (action) {
+    case "accept":
+      await acceptField(db, { recordId, fieldKey, userId });
+      break;
+    case "edit":
+      await editField(db, {
         projectId,
         sectionKey,
-        fieldPath: path,
-        previousValue: toJsonValue(previousValue),
-        newValue: toJsonValue(value),
-        source: source === "CHATBOT" ? "CHATBOT" : "VM_MANUAL",
-        reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
-        overriddenById: userId,
-      },
-    }),
-  ]);
+        recordId,
+        fieldKey,
+        value: body.value,
+        userId,
+        reason: body.reason,
+      });
+      break;
+    case "gap":
+      await gapField(db, { recordId, fieldKey, userId });
+      break;
+    case "undo":
+      await db.fieldValue.update({
+        where: { recordId_fieldKey: { recordId, fieldKey } },
+        data: { review: "PENDING", reviewedById: null, reviewedAt: null },
+      });
+      break;
+    default:
+      break;
+  }
 
-  return { section: updated, override };
+  return getSectionReview(db, projectId, sectionKey);
+}
+
+/** Controller entry — v2 action-based PATCH body. */
+export async function patchSectionField({
+  db,
+  projectId,
+  sectionKey,
+  userId,
+  ...body
+}) {
+  return applyFieldPatch(db, projectId, sectionKey, body, userId);
 }

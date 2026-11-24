@@ -1,14 +1,11 @@
 /**
- * Job type strings stored on Job.type.
- *
- * EXTRACT_TEXT — mechanical page text (Step 3).
- * EXTRACT_SECTION — LLM structured extraction per section (Step 4).
- * DERIVE_CHRONOLOGY — aggregates dated events from extractor payloads (Step 4).
+ * Job type strings stored on Job.type (v2 pipeline).
  */
 export const JOB_TYPES = {
   EXTRACT_TEXT: "EXTRACT_TEXT",
-  EXTRACT_SECTION: "EXTRACT_SECTION",
-  DERIVE_CHRONOLOGY: "DERIVE_CHRONOLOGY",
+  TRIAGE_DOCUMENT: "TRIAGE_DOCUMENT",
+  EXTRACT_STEP: "EXTRACT_STEP",
+  DERIVE_SECTIONS: "DERIVE_SECTIONS",
 };
 
 export const JOB_TYPE_VALUES = Object.values(JOB_TYPES);

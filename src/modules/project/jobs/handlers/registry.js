@@ -1,10 +1,8 @@
 import { JOB_TYPES } from "../types.js";
 import { handleExtractText, onExtractTextDead } from "./extract-text.js";
-import { handleExtractSection, onExtractSectionDead } from "./extract-section.js";
-import {
-  handleDeriveChronology,
-  onDeriveChronologyDead,
-} from "./derive-chronology.js";
+import { handleTriageDocument, onTriageDocumentDead } from "./triage-document.js";
+import { handleExtractStep, onExtractStepDead } from "./extract-step.js";
+import { handleDeriveSections, onDeriveSectionsDead } from "./derive-sections.js";
 
 /**
  * @typedef {Object} JobHandler
@@ -18,13 +16,17 @@ const handlers = {
     run: handleExtractText,
     onDead: onExtractTextDead,
   },
-  [JOB_TYPES.EXTRACT_SECTION]: {
-    run: handleExtractSection,
-    onDead: onExtractSectionDead,
+  [JOB_TYPES.TRIAGE_DOCUMENT]: {
+    run: handleTriageDocument,
+    onDead: onTriageDocumentDead,
   },
-  [JOB_TYPES.DERIVE_CHRONOLOGY]: {
-    run: handleDeriveChronology,
-    onDead: onDeriveChronologyDead,
+  [JOB_TYPES.EXTRACT_STEP]: {
+    run: handleExtractStep,
+    onDead: onExtractStepDead,
+  },
+  [JOB_TYPES.DERIVE_SECTIONS]: {
+    run: handleDeriveSections,
+    onDead: onDeriveSectionsDead,
   },
 };
 

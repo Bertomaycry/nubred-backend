@@ -1,23 +1,12 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { protocolExtractionSchema } from "./protocol.schema.js";
+import { makeSectionDefinition } from "../make-section.js";
+import { protocolFieldTree } from "./protocol.fields.js";
 import { protocolRules } from "./protocol.rules.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export const protocolSection = {
+export const protocolSection = makeSectionDefinition({
   key: "protocol",
-  label: "Protocols",
-  order: 4,
+  label: "Protocol",
+  order: 8,
   kind: "extractor",
-  enabled: true,
-  schema: protocolExtractionSchema,
+  fieldTree: protocolFieldTree,
   rules: protocolRules,
-  promptDir: join(__dirname, "prompts"),
-  relevantDocTypes: [
-    "PROTOCOL_DOCUMENT",
-    "CONTRACT_ANNEX",     // Protocols often appear in trial agreement annexes
-    "VCU_EVALUATION",
-    "SIGNED_CONTRACT",
-  ],
-};
+});

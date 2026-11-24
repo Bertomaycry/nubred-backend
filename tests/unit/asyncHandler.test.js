@@ -54,6 +54,26 @@ describe("asyncHandler - unit tests", () => {
     });
   });
 
+  test("asyncHandler: non-numeric error code (Prisma) -> 500", async () => {
+    const req = makeReq();
+    const res = makeRes();
+    const next = makeNext();
+
+    const error = new Error("The column `detectedType` does not exist.");
+    error.code = "P2022";
+
+    const handler = jest.fn().mockRejectedValue(error);
+    const wrapped = asyncHandler(handler);
+
+    await wrapped(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "The column `detectedType` does not exist.",
+    });
+  });
+
   test("asyncHandler: handler throws error without code -> returns 500", async () => {
     const req = makeReq();
     const res = makeRes();
