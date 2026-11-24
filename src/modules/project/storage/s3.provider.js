@@ -13,6 +13,7 @@ import {
   PutPublicAccessBlockCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { slugError } from "../../client/slug.js";
 import { StorageProvider } from "./provider.js";
 
 const DEFAULT_REGION = "us-east-1";
@@ -34,16 +35,34 @@ const STORAGE_CORS_DEFAULTS = [
   ...STORAGE_CORS_REQUIRED,
 ];
 
+const CLIENT_WORKSPACE_HOSTS = ["gov.nubred.com", "gov.preview.nubred.com"];
+
+/**
+ * Exact workspace origins for one client bucket. MinIO matches these; it often
+ * ignores the `https://*.host` wildcards above.
+ * @param {string} bucket `nubred-{slug}`
+ * @returns {string[]}
+ */
+export function clientExactOrigins(bucket) {
+  const name = String(bucket ?? "");
+  if (!name.startsWith("nubred-")) return [];
+  const slug = name.slice("nubred-".length);
+  if (slugError(slug)) return [];
+  return CLIENT_WORKSPACE_HOSTS.map((host) => `https://${slug}.${host}`);
+}
+
 /**
  * Browser origins allowed to PUT/GET a client bucket.
  * Env origins are added. The prod and staging client wildcards stay even when
  * NUBRED_STORAGE_CORS_ORIGINS is set, so a staging list cannot drop them.
  * @param {string} [envValue]
  * @param {string} [hostSuffix]
+ * @param {string} [bucket]
  */
 export function storageCorsOrigins(
   envValue = process.env.NUBRED_STORAGE_CORS_ORIGINS,
-  hostSuffix = process.env.NUBRED_TENANT_HOST_SUFFIX
+  hostSuffix = process.env.NUBRED_TENANT_HOST_SUFFIX,
+  bucket
 ) {
   const fromEnv = String(envValue ?? "")
     .split(",")
@@ -58,7 +77,14 @@ export function storageCorsOrigins(
     : [];
 
   const base = fromEnv.length > 0 ? fromEnv : STORAGE_CORS_DEFAULTS;
-  return [...new Set([...base, ...configured, ...STORAGE_CORS_REQUIRED])];
+  return [
+    ...new Set([
+      ...base,
+      ...configured,
+      ...STORAGE_CORS_REQUIRED,
+      ...clientExactOrigins(bucket),
+    ]),
+  ];
 }
 
 function requiredEnv(name) {
@@ -80,6 +106,10 @@ function createClient(endpoint) {
     region: process.env.AWS_REGION || DEFAULT_REGION,
     endpoint: endpoint || undefined,
     forcePathStyle,
+    // Default checksums sign an empty body (AAAAAA==). The browser PUT then
+    // fails and Chrome reports it as CORS.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
     credentials: {
       accessKeyId: requiredEnv("AWS_ACCESS_KEY_ID"),
       secretAccessKey: requiredEnv("AWS_SECRET_ACCESS_KEY"),
@@ -180,7 +210,11 @@ export class S3StorageProvider extends StorageProvider {
   }
 
   async _applyCors(bucket) {
-    const allowedOrigins = storageCorsOrigins();
+    const allowedOrigins = storageCorsOrigins(
+      process.env.NUBRED_STORAGE_CORS_ORIGINS,
+      process.env.NUBRED_TENANT_HOST_SUFFIX,
+      bucket
+    );
 
     try {
       await this._client.send(
