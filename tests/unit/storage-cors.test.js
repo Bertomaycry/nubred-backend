@@ -20,4 +20,15 @@ describe("storage CORS origins", () => {
     expect(origins).toContain("https://*.clients.example.com");
     expect(origins).toContain("https://*.gov.preview.nubred.com");
   });
+
+  test("a client bucket also allows that client's exact workspace origins", () => {
+    const origins = storageCorsOrigins("", "", "nubred-stag");
+    expect(origins).toContain("https://stag.gov.preview.nubred.com");
+    expect(origins).toContain("https://stag.gov.nubred.com");
+  });
+
+  test("the platform bucket does not get a workspace origin", () => {
+    const origins = storageCorsOrigins("", "", "nubred-platform");
+    expect(origins).not.toContain("https://platform.gov.preview.nubred.com");
+  });
 });
