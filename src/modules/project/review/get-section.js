@@ -5,8 +5,6 @@ import {
   listSectionRecords,
 } from "../field-store/repository.js";
 import { serializeSectionPayload } from "../field-store/serialize.js";
-import { computeChipCounts } from "../field-store/chip-counts.js";
-import { badgeForField } from "../field-store/status.js";
 import { noticeForSection } from "../extraction/failure-message.js";
 
 export async function getSectionReview(db, projectId, sectionKey) {
@@ -17,23 +15,10 @@ export async function getSectionReview(db, projectId, sectionKey) {
 
   const body = serializeSectionPayload(section, state, records, evidence);
 
-  const flatFields = [];
-  for (const record of records) {
-    for (const fv of record.fieldValues) {
-      const open = fv.candidates?.filter((c) => c.state === "OPEN")?.length ?? 0;
-      flatFields.push({
-        fieldKey: fv.fieldKey,
-        badge: badgeForField(fv, open),
-        required: false,
-      });
-    }
-  }
-  const { chipCounts, requiredMissing } = computeChipCounts(section, flatFields);
-
   const evaluation = evaluateSectionRules(section.rules, {
     extraction: body,
-    chipCounts,
-    requiredMissing,
+    chipCounts: body.chipCounts,
+    requiredMissing: body.requiredMissing,
     reviewState: state.reviewState ?? {},
   });
 
@@ -52,7 +37,7 @@ export async function getSectionReview(db, projectId, sectionKey) {
     extractionMessage: noticeForSection(
       latest?.steps ?? [],
       section.key,
-      chipCounts.all,
+      body.chipCounts.all,
       latest?.status
     ),
   };

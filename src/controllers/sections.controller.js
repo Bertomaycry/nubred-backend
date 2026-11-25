@@ -6,6 +6,7 @@ import { serializeSectionList } from "../modules/project/field-store/serialize.j
 import { computeChipCounts } from "../modules/project/field-store/chip-counts.js";
 import { listSectionRecords } from "../modules/project/field-store/repository.js";
 import { badgeForField } from "../modules/project/field-store/status.js";
+import { fieldKeysForGroup } from "../modules/project/sections/field-tree/traverse.js";
 import { startExtractionRun } from "../modules/project/extraction/start.js";
 import { noticeForSection } from "../modules/project/extraction/failure-message.js";
 import { cascadeScope, sectionDependents } from "../modules/project/sections/dependents.js";
@@ -23,9 +24,18 @@ export const listSections = asyncHandler(async (req, res) => {
   const countBySection = {};
   for (const section of sections) {
     const records = await listSectionRecords(req.db, req.project.id, section.key);
+    const keysByGroup = new Map();
+    const onGroup = (groupPath, fieldKey) => {
+      const path = groupPath || "";
+      if (!keysByGroup.has(path)) {
+        keysByGroup.set(path, fieldKeysForGroup(section.fieldTree.children, path));
+      }
+      return keysByGroup.get(path).has(fieldKey);
+    };
     const flat = [];
     for (const record of records) {
       for (const fv of record.fieldValues) {
+        if (!onGroup(record.groupPath, fv.fieldKey)) continue;
         const open = fv.candidates?.filter((c) => c.state === "OPEN")?.length ?? 0;
         flat.push({
           fieldKey: fv.fieldKey,

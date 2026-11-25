@@ -22,21 +22,6 @@ export const contractRules = {
    */
   blocking: [
     {
-      id: "no_parties",
-      type: "REQUIRED_NON_EMPTY",
-      fieldPath: "parties",
-      message:
-        "At least one party must be identified before the Contract section can be confirmed.",
-    },
-    {
-      id: "gaps_tab_not_viewed",
-      type: "REVIEW_STATE",
-      key: "gapsTabViewed",
-      message:
-        "The Gaps tab must be viewed before confirming. " +
-          "Open the Gaps tab to review all ABSENCE, ANOMALY, and IMBALANCE findings.",
-    },
-    {
       id: "missing_required_extraction_fields",
       type: "CUSTOM",
       message:
@@ -98,13 +83,9 @@ export const contractRules = {
     },
   ],
 
-  /**
-   * The three-tab review structure for this section (Doc F spec).
-   * Tab 3 (Gaps) must be marked as viewed before `gapsTabViewed` becomes true.
-   */
   reviewTabs: [
     { id: "actors", label: "Actors", order: 1 },
     { id: "clause_analysis", label: "Clause Analysis", order: 2 },
-    { id: "gaps", label: "Gaps", order: 3, mustViewBeforeConfirm: true },
+    { id: "gaps", label: "Gaps", order: 3 },
   ],
 };

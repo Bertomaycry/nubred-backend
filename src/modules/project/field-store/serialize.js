@@ -1,4 +1,4 @@
-import { walkFields } from "../sections/field-tree/traverse.js";
+import { fieldKeysForGroup, walkFields } from "../sections/field-tree/traverse.js";
 import { badgeForField } from "./status.js";
 import { computeChipCounts } from "./chip-counts.js";
 
@@ -33,10 +33,19 @@ export function serializeSectionPayload(section, state, records, evidence) {
       f,
     ])
   );
+  const keysByGroup = new Map();
+  const onGroup = (groupPath, fieldKey) => {
+    const path = groupPath || "";
+    if (!keysByGroup.has(path)) {
+      keysByGroup.set(path, fieldKeysForGroup(section.fieldTree.children, path));
+    }
+    return keysByGroup.get(path).has(fieldKey);
+  };
 
   const flatFields = [];
   for (const record of records) {
     for (const fv of record.fieldValues) {
+      if (!onGroup(record.groupPath, fv.fieldKey)) continue;
       const def = fieldDefs.get(fv.fieldKey);
       const open = fv.candidates?.filter((c) => c.state === "OPEN")?.length ?? 0;
       flatFields.push({
@@ -76,14 +85,16 @@ export function serializeSectionPayload(section, state, records, evidence) {
       origin: r.origin,
       tag: r.tag,
       deletedAt: r.deletedAt,
-      fields: r.fieldValues.map((fv) => ({
-        fieldKey: fv.fieldKey,
-        value: fv.value,
-        status: fv.status,
-        confidence: fv.confidence,
-        review: fv.review,
-        candidates: (fv.candidates ?? []).map(serializeCandidate),
-      })),
+      fields: r.fieldValues
+        .filter((fv) => onGroup(r.groupPath, fv.fieldKey))
+        .map((fv) => ({
+          fieldKey: fv.fieldKey,
+          value: fv.value,
+          status: fv.status,
+          confidence: fv.confidence,
+          review: fv.review,
+          candidates: (fv.candidates ?? []).map(serializeCandidate),
+        })),
     })),
     chipCounts,
     requiredMissing,
