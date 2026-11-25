@@ -8,13 +8,6 @@
 export const protocolRules = {
   blocking: [
     {
-      id: "no_protocols",
-      type: "REQUIRED_NON_EMPTY",
-      fieldPath: "protocols",
-      message:
-        "At least one protocol must be identified before the Protocol section can be confirmed.",
-    },
-    {
       id: "protocol_missing_parameters",
       type: "CUSTOM",
       message:

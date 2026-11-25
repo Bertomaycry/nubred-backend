@@ -5,20 +5,13 @@
 export const genotypeRules = {
   blocking: [
     {
-      id: "no_genotypes",
-      type: "REQUIRED_NON_EMPTY",
-      fieldPath: "genotypes",
-      message:
-        "At least one genotype must be identified before the Genotype section can be confirmed.",
-    },
-    {
       id: "genotype_missing_species",
       type: "CUSTOM",
       message:
         "Every genotype must have a species assigned (either primary_species or per-genotype species_botanical). " +
           "Species is the minimum required field — confirm or add manually before confirming.",
       check({ extraction }) {
-        if (!extraction?.genotypes?.length) return false; // handled by no_genotypes rule
+        if (!extraction?.genotypes?.length) return false;
         const hasNoSpecies = extraction.genotypes.some(
           (g) =>
             !g.species_botanical &&
