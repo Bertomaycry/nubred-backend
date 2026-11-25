@@ -98,7 +98,7 @@ function createClient(endpoint) {
     ? process.env.AWS_S3_FORCE_PATH_STYLE === "true"
     : Boolean(endpoint);
 
-  return new S3Client({
+  const client = new S3Client({
     region: process.env.AWS_REGION || DEFAULT_REGION,
     endpoint: endpoint || undefined,
     forcePathStyle,
@@ -111,11 +111,39 @@ function createClient(endpoint) {
       secretAccessKey: requiredEnv("AWS_SECRET_ACCESS_KEY"),
     },
   });
+  // PutBucketCors marks the checksum as required, so WHEN_REQUIRED still sends
+  // x-amz-checksum-* / x-amz-sdk-checksum-algorithm. MinIO rejects those headers.
+  client.middlewareStack.addRelativeTo(stripChecksumHeaders, {
+    relation: "before",
+    toMiddleware: "httpSigningMiddleware",
+    name: "stripMinioChecksumHeaders",
+  });
+  return client;
+}
+
+function stripChecksumHeaders(next) {
+  return async (args) => {
+    const headers = args.request?.headers;
+    if (headers) {
+      for (const key of Object.keys(headers)) {
+        const name = key.toLowerCase();
+        if (name.startsWith("x-amz-checksum-") || name === "x-amz-sdk-checksum-algorithm") {
+          delete headers[key];
+        }
+      }
+    }
+    return next(args);
+  };
 }
 
 function isNotFound(error) {
   const status = error?.$metadata?.httpStatusCode;
   return status === 404 || error?.name === "NotFound" || error?.Code === "NoSuchBucket";
+}
+
+function isNotImplemented(error) {
+  const status = error?.$metadata?.httpStatusCode;
+  return status === 501 || error?.name === "NotImplemented" || error?.Code === "NotImplemented";
 }
 
 /**
@@ -230,11 +258,11 @@ export class S3StorageProvider extends StorageProvider {
         })
       );
     } catch (error) {
-      if (required) {
+      // Community MinIO has no PutBucketCors (501). Hetzner and AWS do.
+      // A 501 must not roll back a new client; set MINIO_API_CORS_ALLOW_ORIGIN there.
+      if (required && !isNotImplemented(error)) {
         throw new Error(`Could not set CORS on bucket "${bucket}": ${error.message}`);
       }
-      // Existing buckets are refreshed best-effort. A new client bucket must
-      // not be left without a CORS rule.
       console.warn(`⚠️  Could not set CORS on bucket "${bucket}": ${error.message}`);
     }
   }
