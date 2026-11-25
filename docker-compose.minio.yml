@@ -13,6 +13,8 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      # Community MinIO rejects PutBucketCors. Browser uploads use this list.
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - nubred_minio_data:/data
 
