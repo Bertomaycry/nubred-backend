@@ -5,13 +5,6 @@
 export const phaseRules = {
   blocking: [
     {
-      id: "no_phases",
-      type: "REQUIRED_NON_EMPTY",
-      fieldPath: "phases",
-      message:
-        "At least one active phase is required. A project with no phases cannot be confirmed.",
-    },
-    {
       id: "phase_missing_type",
       type: "CUSTOM",
       message:
