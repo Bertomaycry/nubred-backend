@@ -31,6 +31,16 @@ export function walkFields(nodes, opts = {}) {
   return out;
 }
 
+/** Field keys that belong on this group. "" is the section root (header fields). */
+export function fieldKeysForGroup(nodes, groupPath) {
+  const want = groupPath || "";
+  const keys = new Set();
+  for (const field of walkFields(nodes, { includeDerived: true })) {
+    if ((field._groupPath ?? "") === want) keys.add(field.key);
+  }
+  return keys;
+}
+
 /**
  * @param {(import("./types.js").FieldDef|import("./types.js").GroupDef)[]} nodes
  */

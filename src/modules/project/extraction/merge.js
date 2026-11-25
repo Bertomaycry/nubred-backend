@@ -9,6 +9,7 @@ import { toFieldValueStatus, toPrismaConfidence } from "../field-store/status.js
 import { quoteVerifiedOnPages } from "./quote-check.js";
 import { confidenceFromDocument } from "./confidence.js";
 import { ROOT_GROUP_PATH } from "../sections/field-tree/build-zod.js";
+import { fieldKeysForGroup } from "../sections/field-tree/traverse.js";
 
 function valuesEqual(a, b) {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -59,6 +60,10 @@ export async function mergeExtractionIntoStore(tx, params) {
       !proposed.group_path || proposed.group_path === ROOT_GROUP_PATH
         ? ""
         : proposed.group_path;
+    const allowedKeys = fieldKeysForGroup(section.fieldTree.children, groupPath);
+    const fieldEntries = Object.entries(proposed.fields ?? {}).filter(
+      ([fieldKey, cell]) => cell && typeof cell === "object" && allowedKeys.has(fieldKey)
+    );
     let record = null;
 
     if (proposed.ref && byId.has(proposed.ref)) {
@@ -74,6 +79,8 @@ export async function mergeExtractionIntoStore(tx, params) {
           ) ?? null;
       }
     }
+
+    if (!record && fieldEntries.length === 0) continue;
 
     if (!record) {
       record = await tx.sectionRecord.create({
@@ -91,8 +98,7 @@ export async function mergeExtractionIntoStore(tx, params) {
       byId.set(record.id, record);
     }
 
-    for (const [fieldKey, cell] of Object.entries(proposed.fields ?? {})) {
-      if (!cell || typeof cell !== "object") continue;
+    for (const [fieldKey, cell] of fieldEntries) {
 
       const status = toFieldValueStatus(cell.status);
       const value = cell.value ?? null;
